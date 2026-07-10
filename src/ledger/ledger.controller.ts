@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Query, UseGuards, Request } from '@nestjs/common';
+import { LedgerType } from '../entities/daily-ledger.entity';
 import { LedgerService } from './ledger.service';
 import { BulkSaveDto } from './dto/bulk-save.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,7 +25,8 @@ export class LedgerController {
     @Request() req,
     @Query('date') date: string,
     @Query('slot') slot: Slot,
+    @Query('type') type?: LedgerType,
   ) {
-    return this.ledgerService.getSlotEntries(req.user.id, date, slot);
+    return this.ledgerService.getSlotEntries(req.user.id, date, slot, type);
   }
 }

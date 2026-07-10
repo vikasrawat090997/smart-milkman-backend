@@ -6,9 +6,10 @@ import { BillLock } from '../entities/bill-lock.entity';
 import { User } from '../entities/user.entity';
 import { DailyLedger } from '../entities/daily-ledger.entity';
 import { PaymentsLedger } from '../entities/payments-ledger.entity';
+import { MilkmanCustomer } from '../entities/milkman-customer.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BillLock, User, DailyLedger, PaymentsLedger])],
+  imports: [TypeOrmModule.forFeature([BillLock, User, DailyLedger, PaymentsLedger, MilkmanCustomer])],
   providers: [BillService],
   controllers: [BillController],
   exports: [BillService],

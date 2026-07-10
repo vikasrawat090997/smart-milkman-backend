@@ -48,13 +48,15 @@ let ReportsService = class ReportsService {
             order: { name: 'ASC' },
         });
         const mappingMap = new Map();
+        const roleMap = new Map();
         mappings.forEach((m) => {
             if (m.customName) {
                 mappingMap.set(m.customerId, m.customName);
             }
+            roleMap.set(m.customerId, m.relationshipRole);
         });
         const users = allUsers.filter((user) => {
-            if (user.role !== 'farmer' && user.role !== 'consumer') {
+            if (user.role !== 'farmer' && user.role !== 'consumer' && user.role !== 'both') {
                 return false;
             }
             if (user.createdAt) {
@@ -91,7 +93,7 @@ let ReportsService = class ReportsService {
                 userId: user.id,
                 name: mappingMap.get(user.id) || user.name,
                 mobileNumber: user.mobileNumber,
-                role: user.role,
+                role: roleMap.get(user.id) || user.role,
                 monthMilkQuantity,
                 monthMilkValue,
                 monthPayments,
@@ -112,8 +114,11 @@ let ReportsService = class ReportsService {
         const mapping = await this.milkmanCustomerRepository.findOne({
             where: { milkmanId, customerId: userId },
         });
-        if (mapping && mapping.customName) {
-            user.name = mapping.customName;
+        if (mapping) {
+            if (mapping.customName) {
+                user.name = mapping.customName;
+            }
+            user.role = mapping.relationshipRole;
         }
         const ledgerEntries = await this.dailyLedgerRepository.find({
             where: { userId, milkmanId },
@@ -200,6 +205,12 @@ let ReportsService = class ReportsService {
         const mappings = await this.milkmanCustomerRepository.find({
             where: { milkmanId },
         });
+        const mappingMap = new Map();
+        mappings.forEach((m) => {
+            if (m.customName) {
+                mappingMap.set(m.customerId, m.customName);
+            }
+        });
         const customerIds = mappings.map((m) => m.customerId);
         if (customerIds.length === 0) {
             return {
@@ -238,6 +249,15 @@ let ReportsService = class ReportsService {
         const users = await this.userRepository.find({
             where: { id: (0, typeorm_2.In)(customerIds) },
             order: { name: 'ASC' }
+        });
+        const mappingRoleMap = new Map();
+        mappings.forEach((m) => {
+            mappingRoleMap.set(m.customerId, m.relationshipRole);
+        });
+        users.forEach((user) => {
+            if (mappingRoleMap.has(user.id)) {
+                user.role = mappingRoleMap.get(user.id);
+            }
         });
         const farmers = users.filter(u => u.role === 'farmer' || u.role === 'both');
         const consumers = users.filter(u => u.role === 'consumer' || u.role === 'both');
@@ -298,27 +318,49 @@ let ReportsService = class ReportsService {
             const amt = Number(item.totalPrice || 0);
             if (isToday) {
                 if (!todayUserEntries[user.id]) {
+                    const mappedName = mappingMap.get(user.id) || user.name;
                     todayUserEntries[user.id] = {
                         id: user.id,
-                        name: user.name,
+                        name: mappedName,
                         role: user.role,
-                        morningQty: 0,
-                        morningRate: 0,
-                        morningAmt: 0,
-                        eveningQty: 0,
-                        eveningRate: 0,
-                        eveningAmt: 0,
+                        morningBuyQty: 0,
+                        morningBuyRate: 0,
+                        morningBuyAmt: 0,
+                        morningSellQty: 0,
+                        morningSellRate: 0,
+                        morningSellAmt: 0,
+                        eveningBuyQty: 0,
+                        eveningBuyRate: 0,
+                        eveningBuyAmt: 0,
+                        eveningSellQty: 0,
+                        eveningSellRate: 0,
+                        eveningSellAmt: 0,
                     };
                 }
+                const tx = todayUserEntries[user.id];
                 if (item.slot === 'morning') {
-                    todayUserEntries[user.id].morningQty = qty;
-                    todayUserEntries[user.id].morningRate = rate;
-                    todayUserEntries[user.id].morningAmt = amt;
+                    if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
+                        tx.morningBuyQty = qty;
+                        tx.morningBuyRate = rate;
+                        tx.morningBuyAmt = amt;
+                    }
+                    else {
+                        tx.morningSellQty = qty;
+                        tx.morningSellRate = rate;
+                        tx.morningSellAmt = amt;
+                    }
                 }
                 else if (item.slot === 'evening') {
-                    todayUserEntries[user.id].eveningQty = qty;
-                    todayUserEntries[user.id].eveningRate = rate;
-                    todayUserEntries[user.id].eveningAmt = amt;
+                    if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
+                        tx.eveningBuyQty = qty;
+                        tx.eveningBuyRate = rate;
+                        tx.eveningBuyAmt = amt;
+                    }
+                    else {
+                        tx.eveningSellQty = qty;
+                        tx.eveningSellRate = rate;
+                        tx.eveningSellAmt = amt;
+                    }
                 }
                 if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
                     if (item.slot === 'morning') {
@@ -368,13 +410,20 @@ let ReportsService = class ReportsService {
             id: tx.id,
             name: tx.name,
             role: tx.role,
-            morningQty: tx.morningQty,
-            morningRate: tx.morningRate,
-            morningAmt: tx.morningAmt,
-            eveningQty: tx.eveningQty,
-            eveningRate: tx.eveningRate,
-            eveningAmt: tx.eveningAmt,
-            totalAmt: tx.morningAmt + tx.eveningAmt,
+            morningBuyQty: tx.morningBuyQty,
+            morningBuyRate: tx.morningBuyRate,
+            morningBuyAmt: tx.morningBuyAmt,
+            morningSellQty: tx.morningSellQty,
+            morningSellRate: tx.morningSellRate,
+            morningSellAmt: tx.morningSellAmt,
+            eveningBuyQty: tx.eveningBuyQty,
+            eveningBuyRate: tx.eveningBuyRate,
+            eveningBuyAmt: tx.eveningBuyAmt,
+            eveningSellQty: tx.eveningSellQty,
+            eveningSellRate: tx.eveningSellRate,
+            eveningSellAmt: tx.eveningSellAmt,
+            totalBuyAmt: tx.morningBuyAmt + tx.eveningBuyAmt,
+            totalSellAmt: tx.morningSellAmt + tx.eveningSellAmt,
         }));
         const todayProfitMorning = todaySellingMorningValue - todayBuyingMorningCost;
         const todayProfitEvening = todaySellingEveningValue - todayBuyingEveningCost;

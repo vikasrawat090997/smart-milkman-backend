@@ -22,7 +22,16 @@ import { MilkmanCustomer } from './entities/milkman-customer.entity';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'mysql',
-      url: process.env.DATABASE_URL || 'mysql://root@localhost:3306/smart_dhudhiya',
+      url: process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql://')
+        ? process.env.DATABASE_URL
+        : undefined,
+      host: process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith('mysql://')
+        ? process.env.DATABASE_URL
+        : (process.env.DB_HOST || 'localhost'),
+      port: parseInt(process.env.DB_PORT || '3306', 10),
+      username: process.env.DB_USERNAME || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_DATABASE || 'smart_dhudhiya',
       entities: [User, RatesHistory, DailyLedger, PaymentsLedger, BillLock, PaymentEditHistory, MilkmanCustomer],
       synchronize: false,
     }),

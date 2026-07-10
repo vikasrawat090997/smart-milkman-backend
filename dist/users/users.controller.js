@@ -31,8 +31,8 @@ let UsersController = class UsersController {
     async createUser(req, createUserDto) {
         return this.usersService.createUser(req.user.id, createUserDto);
     }
-    async getMyMilkmen(req) {
-        return this.usersService.getMyMilkmen(req.user.id);
+    async getMyMilkmen(req, role) {
+        return this.usersService.getMyMilkmen(req.user.id, role);
     }
     async getActive(req, role) {
         return this.usersService.findAllActive(req.user.id, role);
@@ -42,6 +42,12 @@ let UsersController = class UsersController {
     }
     async bulkUpdateRate(req, bulkUpdateRateDto) {
         return this.usersService.bulkUpdateRate(req.user.id, bulkUpdateRateDto);
+    }
+    async findByMobile(req, mobile) {
+        const user = await this.usersService.findByMobile(mobile);
+        if (!user)
+            throw new common_1.NotFoundException('User not found');
+        return user;
     }
     async findOne(req, id) {
         const milkmanId = req.user.role === user_entity_1.Role.MILKMAN ? req.user.id : undefined;
@@ -67,8 +73,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('my-milkmen'),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getMyMilkmen", null);
 __decorate([
@@ -97,6 +104,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, bulk_update_rate_dto_1.BulkUpdateRateDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "bulkUpdateRate", null);
+__decorate([
+    (0, common_1.Get)('by-mobile/:mobile'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('mobile')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findByMobile", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Request)()),

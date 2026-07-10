@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
+import { LedgerType } from './daily-ledger.entity';
 
 @Entity({ name: 'rates_history' })
 @Index('idx_user_start', ['userId', 'startDate'])
@@ -19,6 +20,9 @@ export class RatesHistory {
 
   @Column({ type: 'date', name: 'start_date' })
   startDate: Date;
+
+  @Column({ type: 'enum', enum: LedgerType, name: 'rate_type', nullable: true })
+  rateType: LedgerType;
 
   @ManyToOne(() => User, (user) => user.ratesHistory, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

@@ -12,6 +12,8 @@ export declare class UsersService {
     private milkmanCustomerRepository;
     private dataSource;
     constructor(userRepository: Repository<User>, ratesHistoryRepository: Repository<RatesHistory>, milkmanCustomerRepository: Repository<MilkmanCustomer>, dataSource: DataSource);
+    private getRateTypesForRole;
+    private createRates;
     createUser(milkmanId: string, dto: CreateUserDto): Promise<User | {
         name: string;
         id: string;
@@ -27,6 +29,19 @@ export declare class UsersService {
     }>;
     findAllActive(milkmanId: string, role?: Role): Promise<User[]>;
     findAll(milkmanId: string, role?: Role): Promise<User[]>;
+    findByMobile(mobileNumber: string): Promise<{
+        id: string;
+        name: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+    } | null>;
     findOne(id: string, milkmanId?: string): Promise<{
         id: string;
         name: string;
@@ -45,6 +60,7 @@ export declare class UsersService {
         message: string;
         count: number;
     }>;
+    syncUserGlobalRole(userId: string): Promise<void>;
     updateUser(milkmanId: string, userId: string, dto: UpdateUserDto): Promise<{
         name: string;
         id: string;
@@ -58,7 +74,8 @@ export declare class UsersService {
         payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }>;
-    getMyMilkmen(customerId: string): Promise<{
+    getMyMilkmen(customerId: string, role?: string): Promise<{
+        relationshipRole: string;
         id: string;
         name: string;
         mobileNumber: string;

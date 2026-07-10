@@ -1,5 +1,5 @@
 import { Repository, DataSource } from 'typeorm';
-import { DailyLedger, Slot } from '../entities/daily-ledger.entity';
+import { DailyLedger, Slot, LedgerType } from '../entities/daily-ledger.entity';
 import { RatesHistory } from '../entities/rates-history.entity';
 import { User } from '../entities/user.entity';
 import { BulkSaveDto } from './dto/bulk-save.dto';
@@ -13,5 +13,5 @@ export declare class LedgerService {
         message: string;
         count: number;
     }>;
-    getSlotEntries(milkmanId: string, dateStr: string, slot: Slot): Promise<DailyLedger[]>;
+    getSlotEntries(milkmanId: string, dateStr: string, slot: Slot, type?: LedgerType): Promise<DailyLedger[]>;
 }

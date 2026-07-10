@@ -5,5 +5,6 @@ export declare class CreateUserDto {
     passwordPin: string;
     role: Role;
     ratePerLiter: number;
+    sellRatePerLiter?: number;
     address?: string;
 }

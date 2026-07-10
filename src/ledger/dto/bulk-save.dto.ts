@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsString, IsEnum, IsArray, ValidateNested, IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Slot } from '../../entities/daily-ledger.entity';
+import { Slot, LedgerType } from '../../entities/daily-ledger.entity';
 
 export class BulkEntryItem {
   @IsNotEmpty()
@@ -24,4 +24,8 @@ export class BulkSaveDto {
   @ValidateNested({ each: true })
   @Type(() => BulkEntryItem)
   entries: BulkEntryItem[];
+
+  @IsOptional()
+  @IsEnum(LedgerType)
+  type?: LedgerType;
 }

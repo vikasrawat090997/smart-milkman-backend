@@ -91,6 +91,6 @@ __decorate([
 ], DailyLedger.prototype, "milkman", void 0);
 exports.DailyLedger = DailyLedger = __decorate([
     (0, typeorm_1.Entity)({ name: 'daily_ledger' }),
-    (0, typeorm_1.Unique)('unique_user_milkman_date_slot', ['userId', 'milkmanId', 'date', 'slot'])
+    (0, typeorm_1.Unique)('unique_user_milkman_date_slot_type', ['userId', 'milkmanId', 'date', 'slot', 'type'])
 ], DailyLedger);
 //# sourceMappingURL=daily-ledger.entity.js.map

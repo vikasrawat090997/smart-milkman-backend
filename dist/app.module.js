@@ -34,7 +34,16 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             typeorm_1.TypeOrmModule.forRoot({
                 type: 'mysql',
-                url: process.env.DATABASE_URL || 'mysql://root@localhost:3306/smart_dhudhiya',
+                url: process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql://')
+                    ? process.env.DATABASE_URL
+                    : undefined,
+                host: process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith('mysql://')
+                    ? process.env.DATABASE_URL
+                    : (process.env.DB_HOST || 'localhost'),
+                port: parseInt(process.env.DB_PORT || '3306', 10),
+                username: process.env.DB_USERNAME || 'root',
+                password: process.env.DB_PASSWORD || '',
+                database: process.env.DB_DATABASE || 'smart_dhudhiya',
                 entities: [user_entity_1.User, rates_history_entity_1.RatesHistory, daily_ledger_entity_1.DailyLedger, payments_ledger_entity_1.PaymentsLedger, bill_lock_entity_1.BillLock, payment_edit_history_entity_1.PaymentEditHistory, milkman_customer_entity_1.MilkmanCustomer],
                 synchronize: false,
             }),

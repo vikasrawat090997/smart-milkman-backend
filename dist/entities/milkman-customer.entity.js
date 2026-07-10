@@ -17,6 +17,7 @@ let MilkmanCustomer = class MilkmanCustomer {
     milkmanId;
     customerId;
     customName;
+    relationshipRole;
     milkman;
     customer;
 };
@@ -37,6 +38,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, name: 'custom_name', nullable: true }),
     __metadata("design:type", String)
 ], MilkmanCustomer.prototype, "customName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, name: 'relationship_role', default: 'both' }),
+    __metadata("design:type", String)
+], MilkmanCustomer.prototype, "relationshipRole", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: 'CASCADE' }),
     (0, typeorm_1.JoinColumn)({ name: 'milkman_id' }),

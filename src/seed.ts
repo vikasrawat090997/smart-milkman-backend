@@ -122,19 +122,25 @@ async function bootstrap() {
 
   // Seed rates
   const rates = [
-    // Ramesh (Farmer 1): Rate 45.00 from June 1, changes to 46.50 on June 12
-    { userId: savedFarmer1.id, ratePerLiter: 45.00, startDate: baseDate },
-    { userId: savedFarmer1.id, ratePerLiter: 46.50, startDate: midMonthDate },
+    // Ramesh (Farmer 1 / Role: BOTH): buying rate (procurement) is 45.00/46.50, selling rate is 55.00/57.50
+    { userId: savedFarmer1.id, ratePerLiter: 45.00, startDate: baseDate, rateType: LedgerType.BUY },
+    { userId: savedFarmer1.id, ratePerLiter: 46.50, startDate: midMonthDate, rateType: LedgerType.BUY },
+    { userId: savedFarmer1.id, ratePerLiter: 55.00, startDate: baseDate, rateType: LedgerType.SELL_REGULAR },
+    { userId: savedFarmer1.id, ratePerLiter: 57.50, startDate: midMonthDate, rateType: LedgerType.SELL_REGULAR },
 
-    // Suresh (Farmer 2): Rate 48.00 from June 1
-    { userId: savedFarmer2.id, ratePerLiter: 48.00, startDate: baseDate },
+    // Ramesh rates under Milkman 2
+    { userId: savedFarmer1.id, milkmanId: savedMilkman2.id, ratePerLiter: 47.00, startDate: baseDate, rateType: LedgerType.BUY },
+    { userId: savedFarmer1.id, milkmanId: savedMilkman2.id, ratePerLiter: 58.00, startDate: baseDate, rateType: LedgerType.SELL_REGULAR },
 
-    // Amit (Consumer 1): Rate 60.00 from June 1, changes to 62.00 on June 12
-    { userId: savedConsumer1.id, ratePerLiter: 60.00, startDate: baseDate },
-    { userId: savedConsumer1.id, ratePerLiter: 62.00, startDate: midMonthDate },
+    // Suresh (Farmer 2 / Role: FARMER): buying rate is 48.00
+    { userId: savedFarmer2.id, ratePerLiter: 48.00, startDate: baseDate, rateType: LedgerType.BUY },
 
-    // Neha (Consumer 2): Rate 65.00 from June 1
-    { userId: savedConsumer2.id, ratePerLiter: 65.00, startDate: baseDate },
+    // Amit (Consumer 1 / Role: CONSUMER): selling rate is 60.00/62.00
+    { userId: savedConsumer1.id, ratePerLiter: 60.00, startDate: baseDate, rateType: LedgerType.SELL_REGULAR },
+    { userId: savedConsumer1.id, ratePerLiter: 62.00, startDate: midMonthDate, rateType: LedgerType.SELL_REGULAR },
+
+    // Neha (Consumer 2 / Role: CONSUMER): selling rate is 65.00
+    { userId: savedConsumer2.id, ratePerLiter: 65.00, startDate: baseDate, rateType: LedgerType.SELL_REGULAR },
   ];
 
   for (const r of rates) {
@@ -248,10 +254,11 @@ async function bootstrap() {
 
   console.log('Seeding customer mappings...');
   const mappings = [
-    { milkmanId: savedMilkman.id, customerId: farmer1.id },
-    { milkmanId: savedMilkman.id, customerId: savedFarmer2.id },
-    { milkmanId: savedMilkman.id, customerId: savedConsumer1.id },
-    { milkmanId: savedMilkman.id, customerId: savedConsumer2.id },
+    { milkmanId: savedMilkman.id, customerId: farmer1.id, relationshipRole: 'both' },
+    { milkmanId: savedMilkman2.id, customerId: farmer1.id, relationshipRole: 'both' },
+    { milkmanId: savedMilkman.id, customerId: savedFarmer2.id, relationshipRole: 'farmer' },
+    { milkmanId: savedMilkman.id, customerId: savedConsumer1.id, relationshipRole: 'consumer' },
+    { milkmanId: savedMilkman.id, customerId: savedConsumer2.id, relationshipRole: 'consumer' },
   ];
   for (const m of mappings) {
     const mappingEntity = dataSource.getRepository(MilkmanCustomer).create(m);

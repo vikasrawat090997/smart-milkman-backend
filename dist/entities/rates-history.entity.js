@@ -12,12 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RatesHistory = void 0;
 const typeorm_1 = require("typeorm");
 const user_entity_1 = require("./user.entity");
+const daily_ledger_entity_1 = require("./daily-ledger.entity");
 let RatesHistory = class RatesHistory {
     id;
     userId;
     milkmanId;
     ratePerLiter;
     startDate;
+    rateType;
     user;
     milkman;
 };
@@ -42,6 +44,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'date', name: 'start_date' }),
     __metadata("design:type", Date)
 ], RatesHistory.prototype, "startDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'enum', enum: daily_ledger_entity_1.LedgerType, name: 'rate_type', nullable: true }),
+    __metadata("design:type", String)
+], RatesHistory.prototype, "rateType", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.ratesHistory, { onDelete: 'CASCADE' }),
     (0, typeorm_1.JoinColumn)({ name: 'user_id' }),

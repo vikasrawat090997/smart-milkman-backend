@@ -15,12 +15,13 @@ const bill_lock_entity_1 = require("../entities/bill-lock.entity");
 const user_entity_1 = require("../entities/user.entity");
 const daily_ledger_entity_1 = require("../entities/daily-ledger.entity");
 const payments_ledger_entity_1 = require("../entities/payments-ledger.entity");
+const milkman_customer_entity_1 = require("../entities/milkman-customer.entity");
 let BillModule = class BillModule {
 };
 exports.BillModule = BillModule;
 exports.BillModule = BillModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([bill_lock_entity_1.BillLock, user_entity_1.User, daily_ledger_entity_1.DailyLedger, payments_ledger_entity_1.PaymentsLedger])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([bill_lock_entity_1.BillLock, user_entity_1.User, daily_ledger_entity_1.DailyLedger, payments_ledger_entity_1.PaymentsLedger, milkman_customer_entity_1.MilkmanCustomer])],
         providers: [bill_service_1.BillService],
         controllers: [bill_controller_1.BillController],
         exports: [bill_service_1.BillService],

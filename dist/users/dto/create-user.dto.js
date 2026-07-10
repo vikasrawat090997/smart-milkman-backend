@@ -18,6 +18,7 @@ class CreateUserDto {
     passwordPin;
     role;
     ratePerLiter;
+    sellRatePerLiter;
     address;
 }
 exports.CreateUserDto = CreateUserDto;
@@ -47,6 +48,11 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateUserDto.prototype, "ratePerLiter", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateUserDto.prototype, "sellRatePerLiter", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

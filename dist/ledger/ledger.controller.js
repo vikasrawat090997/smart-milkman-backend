@@ -14,13 +14,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LedgerController = void 0;
 const common_1 = require("@nestjs/common");
+const daily_ledger_entity_1 = require("../entities/daily-ledger.entity");
 const ledger_service_1 = require("./ledger.service");
 const bulk_save_dto_1 = require("./dto/bulk-save.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const roles_guard_1 = require("../auth/roles.guard");
 const roles_decorator_1 = require("../auth/roles.decorator");
 const user_entity_1 = require("../entities/user.entity");
-const daily_ledger_entity_1 = require("../entities/daily-ledger.entity");
+const daily_ledger_entity_2 = require("../entities/daily-ledger.entity");
 let LedgerController = class LedgerController {
     ledgerService;
     constructor(ledgerService) {
@@ -29,8 +30,8 @@ let LedgerController = class LedgerController {
     async bulkSave(req, dto) {
         return this.ledgerService.bulkSave(req.user.id, dto);
     }
-    async getSlotEntries(req, date, slot) {
-        return this.ledgerService.getSlotEntries(req.user.id, date, slot);
+    async getSlotEntries(req, date, slot, type) {
+        return this.ledgerService.getSlotEntries(req.user.id, date, slot, type);
     }
 };
 exports.LedgerController = LedgerController;
@@ -49,8 +50,9 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)('date')),
     __param(2, (0, common_1.Query)('slot')),
+    __param(3, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], LedgerController.prototype, "getSlotEntries", null);
 exports.LedgerController = LedgerController = __decorate([

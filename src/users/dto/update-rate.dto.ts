@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEnum, Min } from 'class-validator';
+import { LedgerType } from '../../entities/daily-ledger.entity';
 
 export class UpdateRateDto {
   @IsNotEmpty()
@@ -9,4 +10,8 @@ export class UpdateRateDto {
   @IsNotEmpty()
   @IsString()
   startDate: string; // Format: YYYY-MM-DD
+
+  @IsOptional()
+  @IsEnum(LedgerType)
+  rateType?: LedgerType;
 }

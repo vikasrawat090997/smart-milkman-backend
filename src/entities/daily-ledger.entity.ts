@@ -13,7 +13,7 @@ export enum LedgerType {
 }
 
 @Entity({ name: 'daily_ledger' })
-@Unique('unique_user_milkman_date_slot', ['userId', 'milkmanId', 'date', 'slot'])
+@Unique('unique_user_milkman_date_slot_type', ['userId', 'milkmanId', 'date', 'slot', 'type'])
 export class DailyLedger {
   @PrimaryGeneratedColumn('uuid')
   id: string;

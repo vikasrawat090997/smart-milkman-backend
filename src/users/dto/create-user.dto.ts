@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsString, IsEnum, IsOptional, Length, IsNumber } from 'class-validator';
 import { Role } from '../../entities/user.entity';
+import { LedgerType } from '../../entities/daily-ledger.entity';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -22,6 +23,10 @@ export class CreateUserDto {
   @IsNotEmpty()
   @IsNumber()
   ratePerLiter: number;
+
+  @IsOptional()
+  @IsNumber()
+  sellRatePerLiter?: number;
 
   @IsOptional()
   @IsString()

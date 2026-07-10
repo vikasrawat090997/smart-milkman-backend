@@ -41,29 +41,44 @@ export class LedgerService {
           continue; // Skip inactive users
         }
 
+        // Determine ledger type: use dto.type if provided, otherwise fall back to role-based
+        const ledgerType: LedgerType = dto.type ?? (user.role === 'farmer' ? LedgerType.BUY : LedgerType.SELL_REGULAR);
+
+        // Determine rateType to lookup (LedgerType.BUY for procurement, LedgerType.SELL_REGULAR for distribution)
+        const targetRateType = ledgerType === LedgerType.BUY ? LedgerType.BUY : LedgerType.SELL_REGULAR;
+
         // Query the active rate from rates_history where start_date <= daily_ledger.date
         const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
-        const rateRecords = await manager.find(RatesHistory, {
+        let rateRecords = await manager.find(RatesHistory, {
           where: [
-            { userId: entry.userId, milkmanId, startDate: LessThanOrEqual(ledgerDateObj) },
-            { userId: entry.userId, milkmanId: IsNull(), startDate: LessThanOrEqual(ledgerDateObj) }
+            { userId: entry.userId, milkmanId, rateType: targetRateType, startDate: LessThanOrEqual(ledgerDateObj) },
+            { userId: entry.userId, milkmanId: IsNull(), rateType: targetRateType, startDate: LessThanOrEqual(ledgerDateObj) }
           ],
           order: { startDate: 'DESC' },
         });
 
+        // Fallback: If no type-specific rate is found, look for any rate
+        if (rateRecords.length === 0) {
+          rateRecords = await manager.find(RatesHistory, {
+            where: [
+              { userId: entry.userId, milkmanId, startDate: LessThanOrEqual(ledgerDateObj) },
+              { userId: entry.userId, milkmanId: IsNull(), startDate: LessThanOrEqual(ledgerDateObj) }
+            ],
+            order: { startDate: 'DESC' },
+          });
+        }
+
         const rateRecord = rateRecords.length > 0 ? rateRecords[0] : null;
         const rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
 
-        // Determine ledger type based on user role
-        const ledgerType: LedgerType = user.role === 'farmer' ? LedgerType.BUY : LedgerType.SELL_REGULAR;
-
-        // Find existing ledger entry for the same user, milkman, date, and slot
+        // Find existing ledger entry for the same user, milkman, date, slot, and type
         let ledgerItem = await manager.findOne(DailyLedger, {
           where: {
             userId: entry.userId,
             milkmanId,
             date: dto.date as any,
             slot: dto.slot,
+            type: ledgerType,
           },
         });
 
@@ -71,6 +86,7 @@ export class LedgerService {
           ledgerItem.quantityLiters = qty;
           ledgerItem.rateApplied = rateApplied;
           ledgerItem.totalPrice = qty * rateApplied;
+          ledgerItem.type = ledgerType;
         } else {
           ledgerItem = manager.create(DailyLedger, {
             userId: entry.userId,
@@ -95,13 +111,14 @@ export class LedgerService {
     });
   }
 
-  // Helper method to fetch slot entries for a specific date and slot
-  async getSlotEntries(milkmanId: string, dateStr: string, slot: Slot) {
+  // Helper method to fetch slot entries for a specific date, slot, and optional type
+  async getSlotEntries(milkmanId: string, dateStr: string, slot: Slot, type?: LedgerType) {
     return this.dailyLedgerRepository.find({
       where: {
         milkmanId,
         date: dateStr as any,
         slot,
+        ...(type ? { type } : {}),
       },
     });
   }

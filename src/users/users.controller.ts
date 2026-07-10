@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateRateDto } from './dto/update-rate.dto';
@@ -21,8 +21,8 @@ export class UsersController {
   }
 
   @Get('my-milkmen')
-  async getMyMilkmen(@Request() req) {
-    return this.usersService.getMyMilkmen(req.user.id);
+  async getMyMilkmen(@Request() req, @Query('role') role?: string) {
+    return this.usersService.getMyMilkmen(req.user.id, role);
   }
 
   @Get('active')
@@ -40,6 +40,13 @@ export class UsersController {
   @Roles(Role.MILKMAN)
   async bulkUpdateRate(@Request() req, @Body() bulkUpdateRateDto: BulkUpdateRateDto) {
     return this.usersService.bulkUpdateRate(req.user.id, bulkUpdateRateDto);
+  }
+
+  @Get('by-mobile/:mobile')
+  async findByMobile(@Request() req, @Param('mobile') mobile: string) {
+    const user = await this.usersService.findByMobile(mobile);
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
   @Get(':id')

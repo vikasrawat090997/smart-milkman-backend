@@ -20,7 +20,8 @@ export declare class UsersController {
         payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }>;
-    getMyMilkmen(req: any): Promise<{
+    getMyMilkmen(req: any, role?: string): Promise<{
+        relationshipRole: string;
         id: string;
         name: string;
         mobileNumber: string;
@@ -38,6 +39,19 @@ export declare class UsersController {
     bulkUpdateRate(req: any, bulkUpdateRateDto: BulkUpdateRateDto): Promise<{
         message: string;
         count: number;
+    }>;
+    findByMobile(req: any, mobile: string): Promise<{
+        id: string;
+        name: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }>;
     findOne(req: any, id: string): Promise<{
         id: string;

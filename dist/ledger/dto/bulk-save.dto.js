@@ -31,6 +31,7 @@ class BulkSaveDto {
     date;
     slot;
     entries;
+    type;
 }
 exports.BulkSaveDto = BulkSaveDto;
 __decorate([
@@ -49,4 +50,9 @@ __decorate([
     (0, class_transformer_1.Type)(() => BulkEntryItem),
     __metadata("design:type", Array)
 ], BulkSaveDto.prototype, "entries", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(daily_ledger_entity_1.LedgerType),
+    __metadata("design:type", String)
+], BulkSaveDto.prototype, "type", void 0);
 //# sourceMappingURL=bulk-save.dto.js.map

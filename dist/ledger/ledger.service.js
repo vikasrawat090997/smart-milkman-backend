@@ -46,29 +46,41 @@ let LedgerService = class LedgerService {
                 if (!user.isActive) {
                     continue;
                 }
+                const ledgerType = dto.type ?? (user.role === 'farmer' ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR);
+                const targetRateType = ledgerType === daily_ledger_entity_1.LedgerType.BUY ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
                 const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
-                const rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
+                let rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                     where: [
-                        { userId: entry.userId, milkmanId, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
-                        { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
+                        { userId: entry.userId, milkmanId, rateType: targetRateType, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                        { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), rateType: targetRateType, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
                     ],
                     order: { startDate: 'DESC' },
                 });
+                if (rateRecords.length === 0) {
+                    rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
+                        where: [
+                            { userId: entry.userId, milkmanId, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                            { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
+                        ],
+                        order: { startDate: 'DESC' },
+                    });
+                }
                 const rateRecord = rateRecords.length > 0 ? rateRecords[0] : null;
                 const rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
-                const ledgerType = user.role === 'farmer' ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
                 let ledgerItem = await manager.findOne(daily_ledger_entity_1.DailyLedger, {
                     where: {
                         userId: entry.userId,
                         milkmanId,
                         date: dto.date,
                         slot: dto.slot,
+                        type: ledgerType,
                     },
                 });
                 if (ledgerItem) {
                     ledgerItem.quantityLiters = qty;
                     ledgerItem.rateApplied = rateApplied;
                     ledgerItem.totalPrice = qty * rateApplied;
+                    ledgerItem.type = ledgerType;
                 }
                 else {
                     ledgerItem = manager.create(daily_ledger_entity_1.DailyLedger, {
@@ -91,12 +103,13 @@ let LedgerService = class LedgerService {
             };
         });
     }
-    async getSlotEntries(milkmanId, dateStr, slot) {
+    async getSlotEntries(milkmanId, dateStr, slot, type) {
         return this.dailyLedgerRepository.find({
             where: {
                 milkmanId,
                 date: dateStr,
                 slot,
+                ...(type ? { type } : {}),
             },
         });
     }

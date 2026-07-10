@@ -4,6 +4,7 @@ import { Repository, DataSource, In } from 'typeorm';
 import { User, Role } from '../entities/user.entity';
 import { RatesHistory } from '../entities/rates-history.entity';
 import { MilkmanCustomer } from '../entities/milkman-customer.entity';
+import { LedgerType } from '../entities/daily-ledger.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateRateDto } from './dto/update-rate.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -22,16 +23,40 @@ export class UsersService {
     private dataSource: DataSource,
   ) { }
 
+  private getRateTypesForRole(role: Role): LedgerType[] {
+    if (role === Role.FARMER) return [LedgerType.BUY];
+    if (role === Role.CONSUMER) return [LedgerType.SELL_REGULAR];
+    return [LedgerType.BUY, LedgerType.SELL_REGULAR]; // both
+  }
+
+  private async createRates(
+    manager: any,
+    userId: string,
+    milkmanId: string,
+    ratePerLiter: number,
+    sellRatePerLiter: number | undefined,
+    role: Role,
+  ) {
+    const types = this.getRateTypesForRole(role);
+    for (const rateType of types) {
+      const rateVal = rateType === LedgerType.BUY ? ratePerLiter : (sellRatePerLiter ?? ratePerLiter);
+      const rate = manager.create(RatesHistory, {
+        userId,
+        milkmanId,
+        ratePerLiter: rateVal,
+        startDate: new Date(),
+        rateType,
+      });
+      await manager.save(RatesHistory, rate);
+    }
+  }
+
   async createUser(milkmanId: string, dto: CreateUserDto) {
     const existing = await this.userRepository.findOne({
       where: { mobileNumber: dto.mobileNumber },
     });
 
     if (existing) {
-      if (existing.role !== dto.role) {
-        throw new ConflictException('Mobile number is already registered with a different user role');
-      }
-
       // Check if already associated with this milkman
       const existingMapping = await this.milkmanCustomerRepository.findOne({
         where: { milkmanId, customerId: existing.id },
@@ -47,26 +72,25 @@ export class UsersService {
           milkmanId,
           customerId: existing.id,
           customName: dto.name,
+          relationshipRole: dto.role,
         });
         await manager.save(MilkmanCustomer, mapping);
 
-        // Set rate for this milkman
-        const rate = manager.create(RatesHistory, {
-          userId: existing.id,
-          milkmanId,
-          ratePerLiter: dto.ratePerLiter,
-          startDate: new Date(),
-        });
-        await manager.save(RatesHistory, rate);
+        // Set rate(s) for this milkman
+        await this.createRates(manager, existing.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role as Role);
       });
 
-      const { passwordPin, ...result } = existing;
+      // Synchronize global role
+      await this.syncUserGlobalRole(existing.id);
+
+      const updatedUser = await this.userRepository.findOne({ where: { id: existing.id } });
+      const { passwordPin, ...result } = updatedUser || existing;
       return { ...result, name: dto.name };
     }
 
     const hashedPin = await bcrypt.hash(dto.passwordPin, 10);
 
-    return this.dataSource.transaction(async (manager) => {
+    const savedUser = await this.dataSource.transaction(async (manager) => {
       const user = manager.create(User, {
         name: dto.name,
         mobileNumber: dto.mobileNumber,
@@ -74,32 +98,34 @@ export class UsersService {
         role: dto.role as Role,
         address: dto.address,
       });
-      const savedUser = await manager.save(User, user);
+      const saved = await manager.save(User, user);
 
       // Create mapping
       const mapping = manager.create(MilkmanCustomer, {
         milkmanId,
-        customerId: savedUser.id,
+        customerId: saved.id,
         customName: dto.name,
+        relationshipRole: dto.role,
       });
       await manager.save(MilkmanCustomer, mapping);
 
-      // Initialize rate specific to this milkman
-      const rate = manager.create(RatesHistory, {
-        userId: savedUser.id,
-        milkmanId,
-        ratePerLiter: dto.ratePerLiter,
-        startDate: new Date(),
-      });
-      await manager.save(RatesHistory, rate);
+      // Initialize rate(s) specific to this milkman
+      await this.createRates(manager, saved.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role as Role);
 
-      return savedUser;
+      return saved;
     });
+
+    await this.syncUserGlobalRole(savedUser.id);
+    return savedUser;
   }
 
   async findAllActive(milkmanId: string, role?: Role) {
+    const whereClause: any = { milkmanId };
+    if (role) {
+      whereClause.relationshipRole = In([role, 'both']);
+    }
     const mappings = await this.milkmanCustomerRepository.find({
-      where: { milkmanId },
+      where: whereClause,
     });
     const customerIds = mappings.map((m) => m.customerId);
     if (customerIds.length === 0) return [];
@@ -108,7 +134,6 @@ export class UsersService {
       where: {
         id: In(customerIds),
         isActive: true,
-        role: role ? In([role, Role.BOTH]) : In([Role.FARMER, Role.CONSUMER, Role.BOTH]),
       },
       relations: {
         ratesHistory: true,
@@ -117,16 +142,21 @@ export class UsersService {
     });
 
     const mappingMap = new Map<string, string>();
+    const mappingRoleMap = new Map<string, string>();
     mappings.forEach((m) => {
       if (m.customName) {
         mappingMap.set(m.customerId, m.customName);
       }
+      mappingRoleMap.set(m.customerId, m.relationshipRole);
     });
 
-    // Filter rates specific to this milkman & apply custom name
+    // Filter rates specific to this milkman & apply custom name & override role
     users.forEach((user) => {
       if (mappingMap.has(user.id)) {
         user.name = mappingMap.get(user.id) as string;
+      }
+      if (mappingRoleMap.has(user.id)) {
+        user.role = mappingRoleMap.get(user.id) as any;
       }
       if (user.ratesHistory) {
         user.ratesHistory = user.ratesHistory.filter(
@@ -142,8 +172,12 @@ export class UsersService {
   }
 
   async findAll(milkmanId: string, role?: Role) {
+    const whereClause: any = { milkmanId };
+    if (role) {
+      whereClause.relationshipRole = In([role, 'both']);
+    }
     const mappings = await this.milkmanCustomerRepository.find({
-      where: { milkmanId },
+      where: whereClause,
     });
     const customerIds = mappings.map((m) => m.customerId);
     if (customerIds.length === 0) return [];
@@ -151,7 +185,6 @@ export class UsersService {
     const users = await this.userRepository.find({
       where: {
         id: In(customerIds),
-        role: role ? In([role, Role.BOTH]) : In([Role.FARMER, Role.CONSUMER, Role.BOTH]),
       },
       relations: {
         ratesHistory: true,
@@ -160,16 +193,21 @@ export class UsersService {
     });
 
     const mappingMap = new Map<string, string>();
+    const mappingRoleMap = new Map<string, string>();
     mappings.forEach((m) => {
       if (m.customName) {
         mappingMap.set(m.customerId, m.customName);
       }
+      mappingRoleMap.set(m.customerId, m.relationshipRole);
     });
 
-    // Filter rates specific to this milkman & apply custom name
+    // Filter rates specific to this milkman & apply custom name & override role
     users.forEach((user) => {
       if (mappingMap.has(user.id)) {
         user.name = mappingMap.get(user.id) as string;
+      }
+      if (mappingRoleMap.has(user.id)) {
+        user.role = mappingRoleMap.get(user.id) as any;
       }
       if (user.ratesHistory) {
         user.ratesHistory = user.ratesHistory.filter(
@@ -182,6 +220,15 @@ export class UsersService {
     });
 
     return users;
+  }
+
+  async findByMobile(mobileNumber: string) {
+    const user = await this.userRepository.findOne({
+      where: { mobileNumber },
+    });
+    if (!user) return null;
+    const { passwordPin, ...result } = user;
+    return result;
   }
 
   async findOne(id: string, milkmanId?: string) {
@@ -232,6 +279,7 @@ export class UsersService {
       milkmanId,
       ratePerLiter: dto.ratePerLiter,
       startDate: new Date(dto.startDate + 'T00:00:00Z'),
+      rateType: dto.rateType ?? undefined,
     });
     return this.ratesHistoryRepository.save(rate);
   }
@@ -253,20 +301,53 @@ export class UsersService {
       return { message: `No active users found for role: ${dto.role}`, count: 0 };
     }
 
-    const rateEntries = users.map((user) => {
-      return this.ratesHistoryRepository.create({
-        userId: user.id,
-        milkmanId,
-        ratePerLiter: dto.ratePerLiter,
-        startDate: new Date(dto.startDate + 'T00:00:00Z'),
-      });
-    });
+    const types = this.getRateTypesForRole(dto.role);
+    const rateEntries = users.flatMap((user) =>
+      types.map((rateType) =>
+        this.ratesHistoryRepository.create({
+          userId: user.id,
+          milkmanId,
+          ratePerLiter: dto.ratePerLiter,
+          startDate: new Date(dto.startDate + 'T00:00:00Z'),
+          rateType,
+        }),
+      ),
+    );
 
     await this.ratesHistoryRepository.save(rateEntries);
     return {
       message: `Updated rate to Rs. ${dto.ratePerLiter} for all ${users.length} active ${dto.role}s.`,
       count: users.length,
     };
+  }
+
+  async syncUserGlobalRole(userId: string) {
+    const mappings = await this.milkmanCustomerRepository.find({
+      where: { customerId: userId },
+    });
+
+    let hasFarmer = false;
+    let hasConsumer = false;
+
+    mappings.forEach((m) => {
+      if (m.relationshipRole === 'farmer' || m.relationshipRole === 'both') {
+        hasFarmer = true;
+      }
+      if (m.relationshipRole === 'consumer' || m.relationshipRole === 'both') {
+        hasConsumer = true;
+      }
+    });
+
+    let globalRole = Role.BOTH;
+    if (hasFarmer && !hasConsumer) {
+      globalRole = Role.FARMER;
+    } else if (!hasFarmer && hasConsumer) {
+      globalRole = Role.CONSUMER;
+    } else if (!hasFarmer && !hasConsumer) {
+      globalRole = Role.CONSUMER;
+    }
+
+    await this.userRepository.update(userId, { role: globalRole });
   }
 
   async updateUser(milkmanId: string, userId: string, dto: UpdateUserDto) {
@@ -300,21 +381,87 @@ export class UsersService {
     }
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
     if (dto.address !== undefined) user.address = dto.address;
-    if (dto.role !== undefined) user.role = dto.role as Role;
+    if (dto.role !== undefined) {
+      const mapping = await this.milkmanCustomerRepository.findOne({
+        where: { milkmanId, customerId: userId },
+      });
+      if (mapping) {
+        const oldMappingRole = mapping.relationshipRole as Role;
+        mapping.relationshipRole = dto.role;
+        await this.milkmanCustomerRepository.save(mapping);
+
+        // Synchronize global role
+        await this.syncUserGlobalRole(userId);
+
+        // Reload from DB to have the calculated global user role
+        const updatedUser = await this.userRepository.findOne({ where: { id: userId } });
+        if (updatedUser) {
+          user.role = updatedUser.role;
+        }
+
+        // Initialize missing rates for this milkman if mapping role upgraded to BOTH
+        const newMappingRole = dto.role as Role;
+        if (newMappingRole === Role.BOTH && oldMappingRole !== Role.BOTH) {
+          const existingRates = await this.ratesHistoryRepository.find({
+            where: { userId: user.id, milkmanId },
+          });
+          const existingTypes = new Set(existingRates.map((r) => r.rateType));
+          const requiredTypes = this.getRateTypesForRole(Role.BOTH);
+          const missingTypes = requiredTypes.filter((t) => !existingTypes.has(t));
+
+          for (const rateType of missingTypes) {
+            const latestExisting = await this.ratesHistoryRepository.findOne({
+              where: { userId: user.id, milkmanId },
+              order: { startDate: 'DESC' },
+            });
+            const defaultRate = latestExisting ? Number(latestExisting.ratePerLiter) : 0;
+            const newRate = this.ratesHistoryRepository.create({
+              userId: user.id,
+              milkmanId,
+              ratePerLiter: defaultRate,
+              startDate: new Date(),
+              rateType,
+            });
+            await this.ratesHistoryRepository.save(newRate);
+          }
+        }
+      }
+    }
 
     const savedUser = await this.userRepository.save(user);
     const { passwordPin, ...result } = savedUser;
     return { ...result, name: dto.name || user.name };
   }
 
-  async getMyMilkmen(customerId: string) {
+  async getMyMilkmen(customerId: string, role?: string) {
     const mappings = await this.milkmanCustomerRepository.find({
       where: { customerId },
       relations: { milkman: true },
     });
-    return mappings.map((m) => {
+
+    let milkmenList = mappings.map((m) => {
       const { passwordPin, ...result } = m.milkman;
-      return result;
+      return {
+        ...result,
+        relationshipRole: m.relationshipRole,
+      };
     });
+
+    if (role) {
+      // Filter milkmen where the customer has rates of the corresponding type
+      const targetRateType = role === 'farmer' ? LedgerType.BUY : LedgerType.SELL_REGULAR;
+      const validMilkmanIds = new Set<string>();
+
+      const rates = await this.ratesHistoryRepository.find({
+        where: { userId: customerId, rateType: targetRateType },
+      });
+      rates.forEach((r) => {
+        if (r.milkmanId) validMilkmanIds.add(r.milkmanId);
+      });
+
+      milkmenList = milkmenList.filter((m) => validMilkmanIds.has(m.id));
+    }
+
+    return milkmenList;
   }
 }

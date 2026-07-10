@@ -4,6 +4,7 @@ export declare class MilkmanCustomer {
     milkmanId: string;
     customerId: string;
     customName: string;
+    relationshipRole: string;
     milkman: User;
     customer: User;
 }

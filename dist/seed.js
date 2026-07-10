@@ -138,12 +138,16 @@ async function bootstrap() {
     const baseDate = new Date('2026-06-01T00:00:00Z');
     const midMonthDate = new Date('2026-06-12T00:00:00Z');
     const rates = [
-        { userId: savedFarmer1.id, ratePerLiter: 45.00, startDate: baseDate },
-        { userId: savedFarmer1.id, ratePerLiter: 46.50, startDate: midMonthDate },
-        { userId: savedFarmer2.id, ratePerLiter: 48.00, startDate: baseDate },
-        { userId: savedConsumer1.id, ratePerLiter: 60.00, startDate: baseDate },
-        { userId: savedConsumer1.id, ratePerLiter: 62.00, startDate: midMonthDate },
-        { userId: savedConsumer2.id, ratePerLiter: 65.00, startDate: baseDate },
+        { userId: savedFarmer1.id, ratePerLiter: 45.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.BUY },
+        { userId: savedFarmer1.id, ratePerLiter: 46.50, startDate: midMonthDate, rateType: daily_ledger_entity_1.LedgerType.BUY },
+        { userId: savedFarmer1.id, ratePerLiter: 55.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
+        { userId: savedFarmer1.id, ratePerLiter: 57.50, startDate: midMonthDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
+        { userId: savedFarmer1.id, milkmanId: savedMilkman2.id, ratePerLiter: 47.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.BUY },
+        { userId: savedFarmer1.id, milkmanId: savedMilkman2.id, ratePerLiter: 58.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
+        { userId: savedFarmer2.id, ratePerLiter: 48.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.BUY },
+        { userId: savedConsumer1.id, ratePerLiter: 60.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
+        { userId: savedConsumer1.id, ratePerLiter: 62.00, startDate: midMonthDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
+        { userId: savedConsumer2.id, ratePerLiter: 65.00, startDate: baseDate, rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR },
     ];
     for (const r of rates) {
         const rateEntity = dataSource.getRepository(rates_history_entity_1.RatesHistory).create(r);
@@ -228,10 +232,11 @@ async function bootstrap() {
     console.log('Seeded payment records.');
     console.log('Seeding customer mappings...');
     const mappings = [
-        { milkmanId: savedMilkman.id, customerId: farmer1.id },
-        { milkmanId: savedMilkman.id, customerId: savedFarmer2.id },
-        { milkmanId: savedMilkman.id, customerId: savedConsumer1.id },
-        { milkmanId: savedMilkman.id, customerId: savedConsumer2.id },
+        { milkmanId: savedMilkman.id, customerId: farmer1.id, relationshipRole: 'both' },
+        { milkmanId: savedMilkman2.id, customerId: farmer1.id, relationshipRole: 'both' },
+        { milkmanId: savedMilkman.id, customerId: savedFarmer2.id, relationshipRole: 'farmer' },
+        { milkmanId: savedMilkman.id, customerId: savedConsumer1.id, relationshipRole: 'consumer' },
+        { milkmanId: savedMilkman.id, customerId: savedConsumer2.id, relationshipRole: 'consumer' },
     ];
     for (const m of mappings) {
         const mappingEntity = dataSource.getRepository(milkman_customer_entity_1.MilkmanCustomer).create(m);
