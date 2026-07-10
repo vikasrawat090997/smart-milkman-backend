@@ -4,5 +4,5 @@ export declare class CreatePaymentDto {
     date: string;
     amountPaid: number;
     paymentMode: PaymentMode;
-    targetRole: string;
+    targetRole?: string;
 }

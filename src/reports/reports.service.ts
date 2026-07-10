@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { DailyLedger } from '../entities/daily-ledger.entity';
+import { DailyLedger, LedgerType } from '../entities/daily-ledger.entity';
 import { PaymentsLedger } from '../entities/payments-ledger.entity';
 import { MilkmanCustomer } from '../entities/milkman-customer.entity';
 
@@ -262,26 +262,23 @@ export class ReportsService {
       order: { name: 'ASC' }
     });
 
-    const farmers = users.filter(u => u.role === 'farmer');
-    const consumers = users.filter(u => u.role === 'consumer');
+    const farmers = users.filter(u => u.role === 'farmer' || u.role === 'both');
+    const consumers = users.filter(u => u.role === 'consumer' || u.role === 'both');
 
     // 2. Fetch all daily ledger entries for this milkman
     const ledgerEntries = await this.dailyLedgerRepository.find({
       where: { milkmanId }
     });
 
-    // Calculate all-time sums
+    // Calculate all-time sums using item.type (not user.role)
     let totalProc = 0;
     let totalRev = 0;
     ledgerEntries.forEach(item => {
       const amt = Number(item.totalPrice || 0);
-      const user = users.find(u => u.id === item.userId);
-      if (user) {
-        if (user.role === 'farmer') {
-          totalProc += amt;
-        } else if (user.role === 'consumer') {
-          totalRev += amt;
-        }
+      if (item.type === LedgerType.BUY) {
+        totalProc += amt;
+      } else {
+        totalRev += amt;
       }
     });
 
@@ -359,7 +356,7 @@ export class ReportsService {
           todayUserEntries[user.id].eveningAmt = amt;
         }
 
-        if (user.role === 'farmer') {
+        if (item.type === LedgerType.BUY) {
           if (item.slot === 'morning') {
             todayBuyingMorningVol += qty;
             todayBuyingMorningCost += amt;
@@ -367,7 +364,7 @@ export class ReportsService {
             todayBuyingEveningVol += qty;
             todayBuyingEveningCost += amt;
           }
-        } else if (user.role === 'consumer') {
+        } else {
           if (item.slot === 'morning') {
             todaySellingMorningVol += qty;
             todaySellingMorningValue += amt;
@@ -379,7 +376,7 @@ export class ReportsService {
       }
 
       if (isThisMonth) {
-        if (user.role === 'farmer') {
+        if (item.type === LedgerType.BUY) {
           if (item.slot === 'morning') {
             monthBuyingMorningVol += qty;
             monthBuyingMorningCost += amt;
@@ -387,7 +384,7 @@ export class ReportsService {
             monthBuyingEveningVol += qty;
             monthBuyingEveningCost += amt;
           }
-        } else if (user.role === 'consumer') {
+        } else {
           if (item.slot === 'morning') {
             monthSellingMorningVol += qty;
             monthSellingMorningValue += amt;

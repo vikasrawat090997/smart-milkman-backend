@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsEnum, Min } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, Min } from 'class-validator';
 import { PaymentMode } from '../../entities/payments-ledger.entity';
 
 export class CreatePaymentDto {
@@ -19,7 +19,7 @@ export class CreatePaymentDto {
   @IsEnum(PaymentMode)
   paymentMode: PaymentMode;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  targetRole: string;
+  targetRole?: string;
 }

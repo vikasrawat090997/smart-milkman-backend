@@ -239,8 +239,8 @@ let ReportsService = class ReportsService {
             where: { id: (0, typeorm_2.In)(customerIds) },
             order: { name: 'ASC' }
         });
-        const farmers = users.filter(u => u.role === 'farmer');
-        const consumers = users.filter(u => u.role === 'consumer');
+        const farmers = users.filter(u => u.role === 'farmer' || u.role === 'both');
+        const consumers = users.filter(u => u.role === 'consumer' || u.role === 'both');
         const ledgerEntries = await this.dailyLedgerRepository.find({
             where: { milkmanId }
         });
@@ -248,14 +248,11 @@ let ReportsService = class ReportsService {
         let totalRev = 0;
         ledgerEntries.forEach(item => {
             const amt = Number(item.totalPrice || 0);
-            const user = users.find(u => u.id === item.userId);
-            if (user) {
-                if (user.role === 'farmer') {
-                    totalProc += amt;
-                }
-                else if (user.role === 'consumer') {
-                    totalRev += amt;
-                }
+            if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
+                totalProc += amt;
+            }
+            else {
+                totalRev += amt;
             }
         });
         let todayBuyingMorningVol = 0;
@@ -323,7 +320,7 @@ let ReportsService = class ReportsService {
                     todayUserEntries[user.id].eveningRate = rate;
                     todayUserEntries[user.id].eveningAmt = amt;
                 }
-                if (user.role === 'farmer') {
+                if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
                     if (item.slot === 'morning') {
                         todayBuyingMorningVol += qty;
                         todayBuyingMorningCost += amt;
@@ -333,7 +330,7 @@ let ReportsService = class ReportsService {
                         todayBuyingEveningCost += amt;
                     }
                 }
-                else if (user.role === 'consumer') {
+                else {
                     if (item.slot === 'morning') {
                         todaySellingMorningVol += qty;
                         todaySellingMorningValue += amt;
@@ -345,7 +342,7 @@ let ReportsService = class ReportsService {
                 }
             }
             if (isThisMonth) {
-                if (user.role === 'farmer') {
+                if (item.type === daily_ledger_entity_1.LedgerType.BUY) {
                     if (item.slot === 'morning') {
                         monthBuyingMorningVol += qty;
                         monthBuyingMorningCost += amt;
@@ -355,7 +352,7 @@ let ReportsService = class ReportsService {
                         monthBuyingEveningCost += amt;
                     }
                 }
-                else if (user.role === 'consumer') {
+                else {
                     if (item.slot === 'morning') {
                         monthSellingMorningVol += qty;
                         monthSellingMorningValue += amt;
