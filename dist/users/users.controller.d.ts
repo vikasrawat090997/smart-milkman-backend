@@ -1,0 +1,69 @@
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateRateDto } from './dto/update-rate.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { BulkUpdateRateDto } from './dto/bulk-update-rate.dto';
+import { Role } from '../entities/user.entity';
+export declare class UsersController {
+    private usersService;
+    constructor(usersService: UsersService);
+    createUser(req: any, createUserDto: CreateUserDto): Promise<import("../entities/user.entity").User | {
+        name: string;
+        id: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+    }>;
+    getMyMilkmen(req: any): Promise<{
+        id: string;
+        name: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+    }[]>;
+    getActive(req: any, role?: Role): Promise<import("../entities/user.entity").User[]>;
+    getAll(req: any, role?: Role): Promise<import("../entities/user.entity").User[]>;
+    bulkUpdateRate(req: any, bulkUpdateRateDto: BulkUpdateRateDto): Promise<{
+        message: string;
+        count: number;
+    }>;
+    findOne(req: any, id: string): Promise<{
+        id: string;
+        name: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+    }>;
+    updateRate(req: any, userId: string, updateRateDto: UpdateRateDto): Promise<import("../entities/rates-history.entity").RatesHistory>;
+    updateUser(req: any, userId: string, updateUserDto: UpdateUserDto): Promise<{
+        name: string;
+        id: string;
+        mobileNumber: string;
+        role: Role;
+        isActive: boolean;
+        address: string;
+        createdAt: Date;
+        ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
+        dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
+        payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+        recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
+    }>;
+}

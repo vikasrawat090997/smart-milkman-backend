@@ -1,0 +1,79 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PaymentsLedger = exports.PaymentMode = void 0;
+const typeorm_1 = require("typeorm");
+const user_entity_1 = require("./user.entity");
+const payment_edit_history_entity_1 = require("./payment-edit-history.entity");
+var PaymentMode;
+(function (PaymentMode) {
+    PaymentMode["CASH"] = "cash";
+    PaymentMode["MANUAL_UPI"] = "manual_upi";
+})(PaymentMode || (exports.PaymentMode = PaymentMode = {}));
+let PaymentsLedger = class PaymentsLedger {
+    id;
+    userId;
+    date;
+    amountPaid;
+    paymentMode;
+    targetRole;
+    recordedBy;
+    user;
+    recorder;
+    editHistory;
+};
+exports.PaymentsLedger = PaymentsLedger;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
+    __metadata("design:type", String)
+], PaymentsLedger.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 36, name: 'user_id' }),
+    __metadata("design:type", String)
+], PaymentsLedger.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date' }),
+    __metadata("design:type", Date)
+], PaymentsLedger.prototype, "date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, name: 'amount_paid' }),
+    __metadata("design:type", Number)
+], PaymentsLedger.prototype, "amountPaid", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'enum', enum: PaymentMode, name: 'payment_mode' }),
+    __metadata("design:type", String)
+], PaymentsLedger.prototype, "paymentMode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, name: 'target_role', nullable: true }),
+    __metadata("design:type", String)
+], PaymentsLedger.prototype, "targetRole", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 36, name: 'recorded_by' }),
+    __metadata("design:type", String)
+], PaymentsLedger.prototype, "recordedBy", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.payments, { onDelete: 'CASCADE' }),
+    (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
+    __metadata("design:type", user_entity_1.User)
+], PaymentsLedger.prototype, "user", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.recordedPayments),
+    (0, typeorm_1.JoinColumn)({ name: 'recorded_by' }),
+    __metadata("design:type", user_entity_1.User)
+], PaymentsLedger.prototype, "recorder", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => payment_edit_history_entity_1.PaymentEditHistory, (history) => history.payment),
+    __metadata("design:type", Array)
+], PaymentsLedger.prototype, "editHistory", void 0);
+exports.PaymentsLedger = PaymentsLedger = __decorate([
+    (0, typeorm_1.Entity)({ name: 'payments_ledger' })
+], PaymentsLedger);
+//# sourceMappingURL=payments-ledger.entity.js.map
