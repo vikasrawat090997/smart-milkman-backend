@@ -14,8 +14,10 @@ const typeorm_1 = require("typeorm");
 const user_entity_1 = require("./user.entity");
 let BillLock = class BillLock {
     id;
-    monthYear;
+    startDate;
+    endDate;
     milkmanId;
+    userId;
     isLocked;
     lockedAt;
     milkman;
@@ -26,13 +28,21 @@ __decorate([
     __metadata("design:type", String)
 ], BillLock.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 7, name: 'month_year' }),
-    __metadata("design:type", String)
-], BillLock.prototype, "monthYear", void 0);
+    (0, typeorm_1.Column)({ type: 'date', name: 'start_date' }),
+    __metadata("design:type", Date)
+], BillLock.prototype, "startDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', name: 'end_date' }),
+    __metadata("design:type", Date)
+], BillLock.prototype, "endDate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 36, name: 'milkman_id', nullable: true }),
     __metadata("design:type", String)
 ], BillLock.prototype, "milkmanId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 36, name: 'user_id', nullable: true }),
+    __metadata("design:type", Object)
+], BillLock.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false, name: 'is_locked' }),
     __metadata("design:type", Boolean)
@@ -47,7 +57,6 @@ __decorate([
     __metadata("design:type", user_entity_1.User)
 ], BillLock.prototype, "milkman", void 0);
 exports.BillLock = BillLock = __decorate([
-    (0, typeorm_1.Entity)({ name: 'bill_locks' }),
-    (0, typeorm_1.Unique)('unique_month_milkman', ['monthYear', 'milkmanId'])
+    (0, typeorm_1.Entity)({ name: 'bill_locks' })
 ], BillLock);
 //# sourceMappingURL=bill-lock.entity.js.map

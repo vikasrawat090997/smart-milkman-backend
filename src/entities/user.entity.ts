@@ -32,6 +32,9 @@ export class User {
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
+  @Column({ type: 'timestamp', nullable: true, name: 'deactivated_at' })
+  deactivatedAt?: Date | null;
+
   @Column({ type: 'text', nullable: true })
   address: string;
 

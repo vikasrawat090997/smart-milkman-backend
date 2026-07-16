@@ -507,13 +507,13 @@ let ReportsService = class ReportsService {
         const ledgerEntries = await this.dailyLedgerRepository.find({
             where: {
                 milkmanId: (0, typeorm_2.In)(milkmanIds),
-                date: (0, typeorm_2.Between)(startDate, endDate)
+                date: (0, typeorm_2.Between)(startDateStr, endDateStr)
             }
         });
         const paymentEntries = await this.paymentsLedgerRepository.find({
             where: {
                 recordedBy: (0, typeorm_2.In)(milkmanIds),
-                date: (0, typeorm_2.Between)(startDate, endDate)
+                date: (0, typeorm_2.Between)(startDateStr, endDateStr)
             }
         });
         let totalBuyQty = 0;
@@ -561,6 +561,27 @@ let ReportsService = class ReportsService {
             const buyVal = uLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
             const sellQty = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
             const sellVal = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+            const buyBreakdown = {};
+            const sellBreakdown = {};
+            uLedgers.forEach((e) => {
+                const mType = e.milkType || 'Buffalo';
+                const qty = Number(e.quantityLiters || 0);
+                const val = Number(e.totalPrice || 0);
+                if (qty > 0) {
+                    if (e.type === 'buy') {
+                        if (!buyBreakdown[mType])
+                            buyBreakdown[mType] = { qty: 0, val: 0 };
+                        buyBreakdown[mType].qty += qty;
+                        buyBreakdown[mType].val += val;
+                    }
+                    else {
+                        if (!sellBreakdown[mType])
+                            sellBreakdown[mType] = { qty: 0, val: 0 };
+                        sellBreakdown[mType].qty += qty;
+                        sellBreakdown[mType].val += val;
+                    }
+                }
+            });
             const amountPaid = uPayments.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
             return {
                 userId: u.id,
@@ -571,6 +592,8 @@ let ReportsService = class ReportsService {
                 buyVal,
                 sellQty,
                 sellVal,
+                buyBreakdown,
+                sellBreakdown,
                 amountPaid,
             };
         });

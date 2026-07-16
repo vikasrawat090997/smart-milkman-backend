@@ -6,6 +6,8 @@ export declare class MilkmanCustomer {
     customName: string;
     relationshipRole: string;
     milkType: string;
+    isActive: boolean;
+    deactivatedAt?: Date | null;
     milkman: User;
     customer: User;
 }

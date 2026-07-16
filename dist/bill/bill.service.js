@@ -48,42 +48,162 @@ let BillService = class BillService {
         }
         return [milkmanId];
     }
-    async lockMonth(milkmanId, monthYear, isLocked) {
-        let lock = await this.billLockRepository.findOne({
-            where: { monthYear, milkmanId },
-        });
-        if (lock) {
-            lock.isLocked = isLocked;
-        }
-        else {
-            lock = this.billLockRepository.create({
-                monthYear,
-                milkmanId,
-                isLocked,
-            });
-        }
-        return this.billLockRepository.save(lock);
-    }
-    async getLockStatus(milkmanId, monthYear) {
+    async lockDateRange(milkmanId, startDateStr, endDateStr, isLocked, userId) {
         const user = await this.userRepository.findOne({ where: { id: milkmanId } });
         const targetMilkmanId = (user && user.parentMilkmanId) ? user.parentMilkmanId : milkmanId;
-        const lock = await this.billLockRepository.findOne({
-            where: { monthYear, milkmanId: targetMilkmanId },
-        });
-        return lock ? lock.isLocked : false;
+        const findWhere = {
+            startDate: startDateStr,
+            endDate: endDateStr,
+            milkmanId: targetMilkmanId
+        };
+        if (userId) {
+            findWhere.userId = userId;
+        }
+        else {
+            findWhere.userId = (0, typeorm_2.IsNull)();
+        }
+        if (isLocked) {
+            let lock = await this.billLockRepository.findOne({ where: findWhere });
+            if (!lock) {
+                lock = this.billLockRepository.create({
+                    startDate: startDateStr,
+                    endDate: endDateStr,
+                    milkmanId: targetMilkmanId,
+                    userId: userId || null,
+                    isLocked: true
+                });
+            }
+            const saved = await this.billLockRepository.save(lock);
+            if (!userId) {
+                await this.billLockRepository.delete({
+                    startDate: startDateStr,
+                    endDate: endDateStr,
+                    milkmanId: targetMilkmanId,
+                    userId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)())
+                });
+            }
+            return saved;
+        }
+        else {
+            await this.billLockRepository.delete(findWhere);
+            return { success: true };
+        }
     }
-    async getLocks(milkmanId) {
-        return this.billLockRepository.find({
-            where: { milkmanId },
+    async isDateLocked(milkmanId, targetDateStr, userId) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        const targetMilkmanId = (user && user.parentMilkmanId) ? user.parentMilkmanId : milkmanId;
+        const locks = await this.billLockRepository.find({
+            where: { milkmanId: targetMilkmanId, isLocked: true }
+        });
+        const targetDate = new Date(targetDateStr);
+        return locks.some((l) => {
+            if (l.userId && l.userId !== userId) {
+                return false;
+            }
+            const start = new Date(l.startDate);
+            const end = new Date(l.endDate);
+            const targetTime = targetDate.getTime();
+            return targetTime >= start.getTime() && targetTime <= end.getTime();
         });
     }
-    async generateBillPdf(res, userId, milkmanId, month, requestUserRole, targetRole) {
+    async getLocks(milkmanId, callerId, callerRole) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        const targetMilkmanId = (user && user.parentMilkmanId) ? user.parentMilkmanId : milkmanId;
+        let callerMapping = null;
+        if (callerId && callerRole !== 'milkman') {
+            callerMapping = await this.milkmanCustomerRepository.findOne({
+                where: { customerId: callerId, milkmanId: targetMilkmanId }
+            });
+        }
+        const locks = await this.billLockRepository.find({
+            where: { milkmanId: targetMilkmanId },
+            order: { startDate: 'DESC' }
+        });
+        return locks
+            .filter((l) => {
+            if (callerId && callerRole !== 'milkman') {
+                if (l.userId && l.userId !== callerId) {
+                    return false;
+                }
+                if (callerMapping && callerMapping.deactivatedAt) {
+                    const lockStart = new Date(l.startDate);
+                    const deactivated = new Date(callerMapping.deactivatedAt);
+                    if (lockStart.getTime() > deactivated.getTime()) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        })
+            .map(l => ({
+            id: l.id,
+            startDate: typeof l.startDate === 'string' ? l.startDate : new Date(l.startDate).toISOString().split('T')[0],
+            endDate: typeof l.endDate === 'string' ? l.endDate : new Date(l.endDate).toISOString().split('T')[0],
+            isLocked: l.isLocked,
+            userId: l.userId,
+            lockedAt: l.lockedAt
+        }));
+    }
+    async generateBillPdf(res, userId, milkmanId, dateRange, requestUserRole, targetRole) {
+        const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
+        doc.pipe(res);
+        await this.drawSingleBillIntoDoc(doc, userId, milkmanId, dateRange, targetRole, requestUserRole);
+        doc.end();
+    }
+    async generateAllBillsPdf(res, milkmanId, dateRange, targetRole) {
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
+        const mappings = await this.milkmanCustomerRepository.find({
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) }
+        });
+        const customerIds = mappings.map(m => m.customerId);
+        if (customerIds.length === 0) {
+            const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
+            doc.pipe(res);
+            doc.text('No customers mapped.');
+            doc.end();
+            return;
+        }
+        const customers = await this.userRepository.find({
+            where: { id: (0, typeorm_2.In)(customerIds), isActive: true }
+        });
+        const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
+        doc.pipe(res);
+        for (let i = 0; i < customers.length; i++) {
+            if (i > 0) {
+                doc.addPage();
+            }
+            await this.drawSingleBillIntoDoc(doc, customers[i].id, milkmanId, dateRange, targetRole, 'milkman');
+        }
+        doc.end();
+    }
+    async drawSingleBillIntoDoc(doc, userId, milkmanId, dateRange, targetRole, requestUserRole) {
         const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
         const mapping = await this.milkmanCustomerRepository.findOne({
             where: { customerId: userId, milkmanId: (0, typeorm_2.In)(milkmanIds) },
         });
         const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
-        const isLocked = await this.getLockStatus(targetMilkmanId, month);
+        let startDate;
+        let endDate;
+        let periodLabel;
+        let isLocked = false;
+        if (dateRange.startDate && dateRange.endDate) {
+            startDate = new Date(dateRange.startDate + 'T00:00:00Z');
+            endDate = new Date(dateRange.endDate + 'T23:59:59Z');
+            periodLabel = `${dateRange.startDate} to ${dateRange.endDate}`;
+            isLocked = true;
+        }
+        else if (dateRange.month) {
+            const [monthStr, yearStr] = dateRange.month.split('-');
+            const m = parseInt(monthStr, 10) - 1;
+            const y = parseInt(yearStr, 10);
+            startDate = new Date(Date.UTC(y, m, 1));
+            endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+            periodLabel = dateRange.month;
+            isLocked = await this.isDateLocked(targetMilkmanId, `${yearStr}-${monthStr}-01`);
+        }
+        else {
+            throw new common_1.NotFoundException('Either startDate/endDate or month must be provided');
+        }
         if (!isLocked && requestUserRole !== 'milkman') {
             throw new common_1.ForbiddenException('Bill not generated yet by Milkman');
         }
@@ -92,11 +212,6 @@ let BillService = class BillService {
             throw new common_1.NotFoundException('User not found');
         }
         const activeLayoutRole = targetRole || (mapping ? mapping.relationshipRole : (user.role === 'both' ? 'both' : user.role));
-        const [monthStr, yearStr] = month.split('-');
-        const m = parseInt(monthStr, 10) - 1;
-        const y = parseInt(yearStr, 10);
-        const startDate = new Date(Date.UTC(y, m, 1));
-        const endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
         const ledgerEntriesRaw = await this.dailyLedgerRepository.find({
             where: { userId, milkmanId: (0, typeorm_2.In)(milkmanIds), date: (0, typeorm_2.Between)(startDate, endDate) },
             order: { date: 'ASC', slot: 'ASC' },
@@ -110,14 +225,13 @@ let BillService = class BillService {
         const borderGray = '#e2e8f0';
         const emeraldGreen = '#16a34a';
         const roseRed = '#dc2626';
-        const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
-        doc.pipe(res);
         doc.fillColor(slateDark).fontSize(20).text('SMART DHUDHIYA', 50, 50, { align: 'left' });
         doc.fontSize(8).fillColor(slateLight).text('Zero-Cost Dairy Ledger & Delivery System', 50, 72);
         doc.fontSize(13).fillColor(slateDark).text('ACCOUNT STATEMENT', 380, 50, { align: 'right' });
-        doc.fontSize(9).fillColor(slateLight).text(`Period: ${month}`, 380, 66, { align: 'right' });
+        doc.fontSize(9).fillColor(slateLight).text(`Period: ${periodLabel}`, 380, 66, { align: 'right' });
         doc.text(`Status: ${isLocked ? 'OFFICIAL INVOICE' : 'UNLOCKED PREVIEW'}`, 380, 78, { align: 'right' });
         doc.moveTo(50, 95).lineTo(545, 95).strokeColor(borderGray).stroke();
+        let yPosition = 200;
         if (activeLayoutRole === 'both') {
             const buyEntries = ledgerEntriesRaw.filter(item => item.type === 'buy');
             const sellEntries = ledgerEntriesRaw.filter(item => item.type.startsWith('sell'));
@@ -165,151 +279,7 @@ let BillService = class BillService {
             doc.fillColor(slateDark).text(`${balanceLabel}: `, 320, 178);
             doc.fillColor(balanceColor).text(`Rs. ${Math.abs(netOverall).toFixed(2)}`, 440, 178);
             doc.moveTo(50, 195).lineTo(545, 195).strokeColor(borderGray).stroke();
-            let yPosition = 210;
-            doc.fontSize(10).fillColor(slateDark).text('🌾 SELLER / PROCUREMENT MILK LEDGER', 50, yPosition);
-            yPosition += 15;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
-            yPosition += 5;
-            doc.fontSize(8).fillColor(slateDark);
-            doc.text('Date', 55, yPosition);
-            doc.text('Shift', 150, yPosition);
-            doc.text('Quantity (Ltr)', 250, yPosition);
-            doc.text('Rate / Ltr', 350, yPosition);
-            doc.text('Total (Rs.)', 460, yPosition);
-            yPosition += 10;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-            yPosition += 6;
-            doc.fillColor('#334155');
-            if (buyEntries.length === 0) {
-                doc.text('No procurement entries recorded this month.', 55, yPosition);
-                yPosition += 16;
-            }
-            else {
-                for (const entry of buyEntries) {
-                    if (yPosition > 720) {
-                        doc.addPage();
-                        yPosition = 50;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                        yPosition += 5;
-                        doc.fontSize(8).fillColor(slateDark);
-                        doc.text('Date', 55, yPosition);
-                        doc.text('Shift', 150, yPosition);
-                        doc.text('Quantity (Ltr)', 250, yPosition);
-                        doc.text('Rate / Ltr', 350, yPosition);
-                        doc.text('Total (Rs.)', 460, yPosition);
-                        yPosition += 10;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-                        yPosition += 6;
-                        doc.fillColor('#334155');
-                    }
-                    const dateStr = new Date(entry.date).toISOString().split('T')[0];
-                    doc.text(dateStr, 55, yPosition);
-                    doc.text(entry.slot.toUpperCase(), 150, yPosition);
-                    doc.text(Number(entry.quantityLiters).toFixed(2), 250, yPosition);
-                    doc.text(`Rs. ${Number(entry.rateApplied).toFixed(2)}`, 350, yPosition);
-                    doc.text(`Rs. ${Number(entry.totalPrice).toFixed(2)}`, 460, yPosition);
-                    yPosition += 14;
-                }
-            }
-            yPosition += 15;
-            if (yPosition > 650) {
-                doc.addPage();
-                yPosition = 50;
-            }
-            doc.fontSize(10).fillColor(slateDark).text('🥛 BUYER / DISTRIBUTION MILK LEDGER', 50, yPosition);
-            yPosition += 15;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
-            yPosition += 5;
-            doc.fontSize(8).fillColor(slateDark);
-            doc.text('Date', 55, yPosition);
-            doc.text('Shift', 150, yPosition);
-            doc.text('Quantity (Ltr)', 250, yPosition);
-            doc.text('Rate / Ltr', 350, yPosition);
-            doc.text('Total (Rs.)', 460, yPosition);
-            yPosition += 10;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-            yPosition += 6;
-            doc.fillColor('#334155');
-            if (sellEntries.length === 0) {
-                doc.text('No distribution entries recorded this month.', 55, yPosition);
-                yPosition += 16;
-            }
-            else {
-                for (const entry of sellEntries) {
-                    if (yPosition > 720) {
-                        doc.addPage();
-                        yPosition = 50;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                        yPosition += 5;
-                        doc.fontSize(8).fillColor(slateDark);
-                        doc.text('Date', 55, yPosition);
-                        doc.text('Shift', 150, yPosition);
-                        doc.text('Quantity (Ltr)', 250, yPosition);
-                        doc.text('Rate / Ltr', 350, yPosition);
-                        doc.text('Total (Rs.)', 460, yPosition);
-                        yPosition += 10;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-                        yPosition += 6;
-                        doc.fillColor('#334155');
-                    }
-                    const dateStr = new Date(entry.date).toISOString().split('T')[0];
-                    doc.text(dateStr, 55, yPosition);
-                    doc.text(entry.slot.toUpperCase(), 150, yPosition);
-                    doc.text(Number(entry.quantityLiters).toFixed(2), 250, yPosition);
-                    doc.text(`Rs. ${Number(entry.rateApplied).toFixed(2)}`, 350, yPosition);
-                    doc.text(`Rs. ${Number(entry.totalPrice).toFixed(2)}`, 460, yPosition);
-                    yPosition += 14;
-                }
-            }
-            yPosition += 15;
-            if (yPosition > 650) {
-                doc.addPage();
-                yPosition = 50;
-            }
-            doc.fontSize(10).fillColor(slateDark).text('💸 PAYMENTS & payouts HISTORICAL LOG', 50, yPosition);
-            yPosition += 15;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
-            yPosition += 5;
-            doc.fontSize(8).fillColor(slateDark);
-            doc.text('Date', 55, yPosition);
-            doc.text('Payment Category', 150, yPosition);
-            doc.text('Payment Mode', 320, yPosition);
-            doc.text('Amount (Rs.)', 450, yPosition);
-            yPosition += 10;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-            yPosition += 6;
-            doc.fillColor('#334155');
-            if (paymentEntriesRaw.length === 0) {
-                doc.text('No payment history log recorded this month.', 55, yPosition);
-                yPosition += 16;
-            }
-            else {
-                for (const pay of paymentEntriesRaw) {
-                    if (yPosition > 720) {
-                        doc.addPage();
-                        yPosition = 50;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                        yPosition += 5;
-                        doc.fontSize(8).fillColor(slateDark);
-                        doc.text('Date', 55, yPosition);
-                        doc.text('Payment Category', 150, yPosition);
-                        doc.text('Payment Mode', 320, yPosition);
-                        doc.text('Amount (Rs.)', 450, yPosition);
-                        yPosition += 10;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-                        yPosition += 6;
-                        doc.fillColor('#334155');
-                    }
-                    const payDateString = new Date(pay.date).toISOString().split('T')[0];
-                    const payRole = pay.targetRole || user.role;
-                    const category = payRole === 'farmer' ? 'Payout to Farmer' : 'Collection from Consumer';
-                    doc.text(payDateString, 55, yPosition);
-                    doc.text(category, 150, yPosition);
-                    doc.text(pay.paymentMode.toUpperCase(), 320, yPosition);
-                    doc.text(`Rs. ${Number(pay.amountPaid).toFixed(2)}`, 450, yPosition);
-                    yPosition += 14;
-                }
-            }
+            yPosition = 210;
         }
         else {
             const ledgerEntries = ledgerEntriesRaw.filter(item => {
@@ -356,95 +326,217 @@ let BillService = class BillService {
             doc.fillColor(slateDark).text(`${balanceLabel}: `, 320, 156);
             doc.fillColor(highlightColor).text(`Rs. ${Math.abs(monthlyNet).toFixed(2)}`, 440, 156);
             doc.moveTo(50, 185).lineTo(545, 185).strokeColor(borderGray).stroke();
-            let yPosition = 200;
-            doc.fontSize(10).fillColor(slateDark).text('DAILY LEDGER ENTRIES', 50, yPosition);
-            yPosition += 15;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
-            yPosition += 5;
-            doc.fontSize(8).fillColor(slateDark);
-            doc.text('Date', 55, yPosition);
-            doc.text('Shift', 150, yPosition);
-            doc.text('Quantity (Ltr)', 250, yPosition);
-            doc.text('Rate / Ltr', 350, yPosition);
-            doc.text('Total (Rs.)', 460, yPosition);
-            yPosition += 10;
-            doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-            yPosition += 6;
-            doc.fillColor('#334155');
-            if (ledgerEntries.length === 0) {
-                doc.text('No ledger logs recorded this month.', 55, yPosition);
-                yPosition += 16;
+            yPosition = 200;
+        }
+        const groupedMap = {};
+        ledgerEntriesRaw.forEach((entry) => {
+            const dateStr = typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString().split('T')[0];
+            if (!groupedMap[dateStr]) {
+                groupedMap[dateStr] = {
+                    date: dateStr,
+                    buyBreakdown: {},
+                    sellBreakdown: {},
+                    paymentVal: 0,
+                };
             }
-            else {
-                for (const entry of ledgerEntries) {
-                    if (yPosition > 720) {
-                        doc.addPage();
-                        yPosition = 50;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                        yPosition += 5;
-                        doc.fontSize(8).fillColor(slateDark);
-                        doc.text('Date', 55, yPosition);
-                        doc.text('Shift', 150, yPosition);
-                        doc.text('Quantity (Ltr)', 250, yPosition);
-                        doc.text('Rate / Ltr', 350, yPosition);
-                        doc.text('Total (Rs.)', 460, yPosition);
-                        yPosition += 10;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-                        yPosition += 6;
-                        doc.fillColor('#334155');
+            const qty = Number(entry.quantityLiters || 0);
+            const val = Number(entry.totalPrice || 0);
+            const mType = entry.milkType || 'Buffalo';
+            if (qty > 0) {
+                if (entry.type === 'buy') {
+                    if (!groupedMap[dateStr].buyBreakdown[mType]) {
+                        groupedMap[dateStr].buyBreakdown[mType] = { qty: 0, val: 0 };
                     }
-                    const dateString = new Date(entry.date).toISOString().split('T')[0];
-                    doc.text(dateString, 55, yPosition);
-                    doc.text(entry.slot.toUpperCase(), 150, yPosition);
-                    doc.text(Number(entry.quantityLiters).toFixed(2), 250, yPosition);
-                    doc.text(`Rs. ${Number(entry.rateApplied).toFixed(2)}`, 350, yPosition);
-                    doc.text(`Rs. ${Number(entry.totalPrice).toFixed(2)}`, 460, yPosition);
-                    yPosition += 14;
+                    groupedMap[dateStr].buyBreakdown[mType].qty += qty;
+                    groupedMap[dateStr].buyBreakdown[mType].val += val;
+                }
+                else {
+                    if (!groupedMap[dateStr].sellBreakdown[mType]) {
+                        groupedMap[dateStr].sellBreakdown[mType] = { qty: 0, val: 0 };
+                    }
+                    groupedMap[dateStr].sellBreakdown[mType].qty += qty;
+                    groupedMap[dateStr].sellBreakdown[mType].val += val;
                 }
             }
-            if (paymentEntries.length > 0) {
-                yPosition += 15;
-                if (yPosition > 650) {
+        });
+        paymentEntriesRaw.forEach((entry) => {
+            const dateStr = typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString().split('T')[0];
+            if (!groupedMap[dateStr]) {
+                groupedMap[dateStr] = {
+                    date: dateStr,
+                    buyBreakdown: {},
+                    sellBreakdown: {},
+                    paymentVal: 0,
+                };
+            }
+            groupedMap[dateStr].paymentVal += Number(entry.amountPaid || 0);
+        });
+        const sortedGroupedLogs = Object.values(groupedMap).sort((a, b) => a.date.localeCompare(b.date));
+        doc.fontSize(10).fillColor(slateDark).text('DAILY TRANSACTION LEDGER LOGS', 50, yPosition);
+        yPosition += 15;
+        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
+        yPosition += 5;
+        doc.fontSize(8).fillColor(slateDark);
+        doc.text('Date', 55, yPosition);
+        doc.text('Buy (Milk Type: Qty / Value)', 145, yPosition);
+        doc.text('Sell (Milk Type: Qty / Value)', 310, yPosition);
+        doc.text('Payments', 475, yPosition);
+        yPosition += 10;
+        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
+        yPosition += 6;
+        if (sortedGroupedLogs.length === 0) {
+            doc.fontSize(8.5).fillColor('#64748b').text('No transaction logs recorded for this period.', 55, yPosition);
+        }
+        else {
+            for (const entry of sortedGroupedLogs) {
+                const buyKeys = Object.keys(entry.buyBreakdown);
+                const sellKeys = Object.keys(entry.sellBreakdown);
+                const linesNeeded = Math.max(buyKeys.length, sellKeys.length, 1);
+                const rowHeight = linesNeeded * 12 + 10;
+                if (yPosition + rowHeight > 750) {
                     doc.addPage();
                     yPosition = 50;
+                    doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
+                    yPosition += 5;
+                    doc.fontSize(8).fillColor(slateDark);
+                    doc.text('Date', 55, yPosition);
+                    doc.text('Buy (Milk Type: Qty / Value)', 145, yPosition);
+                    doc.text('Sell (Milk Type: Qty / Value)', 310, yPosition);
+                    doc.text('Payments', 475, yPosition);
+                    yPosition += 10;
+                    doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
+                    yPosition += 6;
                 }
-                doc.fontSize(10).fillColor(slateDark).text('PAYMENTS TRANSACTION HISTORY', 50, yPosition);
-                yPosition += 15;
-                doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                yPosition += 5;
-                doc.fontSize(8).fillColor(slateDark);
-                doc.text('Date', 55, yPosition);
-                doc.text('Payment Mode', 250, yPosition);
-                doc.text('Amount (Rs.)', 400, yPosition);
-                yPosition += 10;
-                doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
+                doc.fontSize(8.5).fillColor('#334155');
+                doc.text(entry.date, 55, yPosition);
+                let buyY = yPosition;
+                if (buyKeys.length === 0) {
+                    doc.text('-', 145, buyY);
+                }
+                else {
+                    buyKeys.forEach((mType) => {
+                        const data = entry.buyBreakdown[mType];
+                        doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 145, buyY);
+                        buyY += 12;
+                    });
+                }
+                let sellY = yPosition;
+                if (sellKeys.length === 0) {
+                    doc.text('-', 310, sellY);
+                }
+                else {
+                    sellKeys.forEach((mType) => {
+                        const data = entry.sellBreakdown[mType];
+                        doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 310, sellY);
+                        sellY += 12;
+                    });
+                }
+                if (entry.paymentVal > 0) {
+                    doc.text(`Rs. ${entry.paymentVal.toLocaleString()}`, 475, yPosition);
+                }
+                else {
+                    doc.text('-', 475, yPosition);
+                }
+                yPosition += rowHeight;
+                doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).lineWidth(0.5).stroke();
                 yPosition += 6;
-                doc.fillColor('#334155');
-                for (const pay of paymentEntries) {
-                    if (yPosition > 720) {
-                        doc.addPage();
-                        yPosition = 50;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).stroke();
-                        yPosition += 5;
-                        doc.fontSize(8).fillColor(slateDark);
-                        doc.text('Date', 55, yPosition);
-                        doc.text('Payment Mode', 250, yPosition);
-                        doc.text('Amount (Rs.)', 400, yPosition);
-                        yPosition += 10;
-                        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
-                        yPosition += 6;
-                        doc.fillColor('#334155');
-                    }
-                    const payDateString = new Date(pay.date).toISOString().split('T')[0];
-                    doc.text(payDateString, 55, yPosition);
-                    doc.text(pay.paymentMode.toUpperCase(), 250, yPosition);
-                    doc.text(`Rs. ${Number(pay.amountPaid).toFixed(2)}`, 400, yPosition);
-                    yPosition += 14;
-                }
             }
         }
+        const slotSummary = {
+            morning: { buy: {}, sell: {} },
+            evening: { buy: {}, sell: {} },
+        };
+        ledgerEntriesRaw.forEach((entry) => {
+            const slot = (entry.slot || 'morning').toLowerCase() === 'evening' ? 'evening' : 'morning';
+            const type = entry.type === 'buy' ? 'buy' : 'sell';
+            const mType = entry.milkType || 'Buffalo';
+            const qty = Number(entry.quantityLiters || 0);
+            const val = Number(entry.totalPrice || 0);
+            if (qty > 0) {
+                if (!slotSummary[slot][type][mType]) {
+                    slotSummary[slot][type][mType] = { qty: 0, val: 0 };
+                }
+                slotSummary[slot][type][mType].qty += qty;
+                slotSummary[slot][type][mType].val += val;
+            }
+        });
+        yPosition += 20;
+        if (yPosition > 580) {
+            doc.addPage();
+            yPosition = 50;
+        }
+        doc.fontSize(10).fillColor(slateDark).text('🥛 SHIFT-WISE & MILK-TYPE TOTALS SUMMARY', 50, yPosition);
+        yPosition += 15;
+        doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
+        yPosition += 8;
+        doc.fontSize(9).fillColor(slateDark).text('🌅 MORNING SHIFT TOTALS', 55, yPosition, { underline: true });
+        doc.text('🌃 EVENING SHIFT TOTALS', 300, yPosition, { underline: true });
+        yPosition += 15;
+        let mornY = yPosition;
+        let eveY = yPosition;
+        doc.fontSize(8.5).fillColor(slateLight).text('Buy (Procurement):', 55, mornY);
+        mornY += 10;
+        doc.fillColor('#334155');
+        const mornBuyKeys = Object.keys(slotSummary.morning.buy);
+        if (mornBuyKeys.length === 0) {
+            doc.text('-', 65, mornY);
+            mornY += 12;
+        }
+        else {
+            mornBuyKeys.forEach((mType) => {
+                const data = slotSummary.morning.buy[mType];
+                doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 65, mornY);
+                mornY += 12;
+            });
+        }
+        mornY += 4;
+        doc.fillColor(slateLight).text('Sell (Distribution):', 55, mornY);
+        mornY += 10;
+        doc.fillColor('#334155');
+        const mornSellKeys = Object.keys(slotSummary.morning.sell);
+        if (mornSellKeys.length === 0) {
+            doc.text('-', 65, mornY);
+            mornY += 12;
+        }
+        else {
+            mornSellKeys.forEach((mType) => {
+                const data = slotSummary.morning.sell[mType];
+                doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 65, mornY);
+                mornY += 12;
+            });
+        }
+        doc.fontSize(8.5).fillColor(slateLight).text('Buy (Procurement):', 300, eveY);
+        eveY += 10;
+        doc.fillColor('#334155');
+        const eveBuyKeys = Object.keys(slotSummary.evening.buy);
+        if (eveBuyKeys.length === 0) {
+            doc.text('-', 310, eveY);
+            eveY += 12;
+        }
+        else {
+            eveBuyKeys.forEach((mType) => {
+                const data = slotSummary.evening.buy[mType];
+                doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 310, eveY);
+                eveY += 12;
+            });
+        }
+        eveY += 4;
+        doc.fillColor(slateLight).text('Sell (Distribution):', 300, eveY);
+        eveY += 10;
+        doc.fillColor('#334155');
+        const eveSellKeys = Object.keys(slotSummary.evening.sell);
+        if (eveSellKeys.length === 0) {
+            doc.text('-', 310, eveY);
+            eveY += 12;
+        }
+        else {
+            eveSellKeys.forEach((mType) => {
+                const data = slotSummary.evening.sell[mType];
+                doc.text(`${mType}: ${data.qty.toFixed(1)}L / Rs. ${data.val.toLocaleString()}`, 310, eveY);
+                eveY += 12;
+            });
+        }
         doc.fontSize(7).fillColor('#a1a1aa').text('Disclaimer: This is a digital system generated copy. No physical signature is required. All payments are verified manually by the Milkman.', 50, 775, { align: 'center', width: 495 });
-        doc.end();
     }
 };
 exports.BillService = BillService;

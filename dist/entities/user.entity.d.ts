@@ -14,6 +14,7 @@ export declare class User {
     passwordPin: string;
     role: Role;
     isActive: boolean;
+    deactivatedAt?: Date | null;
     address: string;
     milkTypes: string;
     parentMilkmanId: string;

@@ -113,6 +113,18 @@ export declare class ReportsController {
             buyVal: number;
             sellQty: number;
             sellVal: number;
+            buyBreakdown: {
+                [milkType: string]: {
+                    qty: number;
+                    val: number;
+                };
+            };
+            sellBreakdown: {
+                [milkType: string]: {
+                    qty: number;
+                    val: number;
+                };
+            };
             amountPaid: number;
         }[];
         subMilkmanReport: {

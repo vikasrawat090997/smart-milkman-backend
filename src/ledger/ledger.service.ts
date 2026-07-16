@@ -5,6 +5,7 @@ import { DailyLedger, Slot, LedgerType } from '../entities/daily-ledger.entity';
 import { RatesHistory } from '../entities/rates-history.entity';
 import { User } from '../entities/user.entity';
 import { MilkmanCustomer } from '../entities/milkman-customer.entity';
+import { BillLock } from '../entities/bill-lock.entity';
 import { BulkSaveDto } from './dto/bulk-save.dto';
 
 @Injectable()
@@ -38,15 +39,31 @@ export class LedgerService {
           throw new BadRequestException(`User not found: ${entry.userId}`);
         }
 
-        if (!user.isActive) {
-          continue; // Skip inactive users
-        }
-
         // Find which milkman this customer is mapped to
         const mapping = await manager.findOne(MilkmanCustomer, {
           where: { customerId: entry.userId },
         });
         const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+
+        if (mapping && !mapping.isActive) {
+          continue; // Skip inactive mappings
+        }
+
+        // Check if date is locked for this user
+        const targetDate = new Date(dto.date);
+        const locks = await manager.find(BillLock, {
+          where: { milkmanId: targetMilkmanId, isLocked: true }
+        });
+        const isLocked = locks.some((l) => {
+          if (l.userId && l.userId !== entry.userId) return false;
+          const start = new Date(l.startDate);
+          const end = new Date(l.endDate);
+          const targetTime = targetDate.getTime();
+          return targetTime >= start.getTime() && targetTime <= end.getTime();
+        });
+        if (isLocked) {
+          throw new BadRequestException(`Cannot save entries. Date ${dto.date} is LOCKED for customer ${user.name}.`);
+        }
 
         // Determine ledger type: use dto.type if provided, otherwise fall back to role-based
         const ledgerType: LedgerType = dto.type ?? (user.role === 'farmer' ? LedgerType.BUY : LedgerType.SELL_REGULAR);

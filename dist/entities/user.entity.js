@@ -28,6 +28,7 @@ let User = class User {
     passwordPin;
     role;
     isActive;
+    deactivatedAt;
     address;
     milkTypes;
     parentMilkmanId;
@@ -63,6 +64,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: true, name: 'is_active' }),
     __metadata("design:type", Boolean)
 ], User.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true, name: 'deactivated_at' }),
+    __metadata("design:type", Object)
+], User.prototype, "deactivatedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)

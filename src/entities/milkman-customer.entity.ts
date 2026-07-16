@@ -22,6 +22,12 @@ export class MilkmanCustomer {
   @Column({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' })
   milkType: string;
 
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  isActive: boolean;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'deactivated_at' })
+  deactivatedAt?: Date | null;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'milkman_id' })
   milkman: User;

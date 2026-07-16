@@ -58,30 +58,42 @@ let BillController = class BillController {
     constructor(billService) {
         this.billService = billService;
     }
-    async lockMonth(req, body) {
-        return this.billService.lockMonth(req.user.id, body.monthYear, body.isLocked);
+    async lockDateRange(req, body) {
+        return this.billService.lockDateRange(req.user.id, body.startDate, body.endDate, body.isLocked, body.userId);
     }
     async getLocks(req, queryMilkmanId) {
         const milkmanId = req.user.role === user_entity_1.Role.MILKMAN ? req.user.id : queryMilkmanId;
         if (!milkmanId) {
             throw new common_1.ForbiddenException('milkmanId is required to query billing locks');
         }
-        return this.billService.getLocks(milkmanId);
+        return this.billService.getLocks(milkmanId, req.user.id, req.user.role);
     }
-    async downloadBill(req, userId, res, month, queryMilkmanId, targetRole) {
+    async downloadAllBills(req, res, month, startDate, endDate, targetRole) {
+        if (req.user.role !== user_entity_1.Role.MILKMAN) {
+            throw new common_1.ForbiddenException('Only milkmen can download all bills');
+        }
+        if (!month && (!startDate || !endDate)) {
+            throw new common_1.ForbiddenException('Either query parameter "month" or both "startDate" and "endDate" are required');
+        }
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=all_customer_bills.pdf`);
+        await this.billService.generateAllBillsPdf(res, req.user.id, { month, startDate, endDate }, targetRole);
+    }
+    async downloadBill(req, userId, res, month, startDate, endDate, queryMilkmanId, targetRole) {
         if (req.user.role !== user_entity_1.Role.MILKMAN && req.user.id !== userId) {
             throw new common_1.ForbiddenException('Unauthorized to view this billing statement');
         }
-        if (!month) {
-            throw new common_1.ForbiddenException('Query parameter "month" is required (Format: MM-YYYY)');
+        if (!month && (!startDate || !endDate)) {
+            throw new common_1.ForbiddenException('Either query parameter "month" or both "startDate" and "endDate" are required');
         }
         const milkmanId = req.user.role === user_entity_1.Role.MILKMAN ? req.user.id : queryMilkmanId;
         if (!milkmanId) {
             throw new common_1.ForbiddenException('Query parameter "milkmanId" is required');
         }
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=bill_${userId}_${month}.pdf`);
-        await this.billService.generateBillPdf(res, userId, milkmanId, month, req.user.role, targetRole);
+        const label = month || `${startDate}_to_${endDate}`;
+        res.setHeader('Content-Disposition', `attachment; filename=bill_${userId}_${label}.pdf`);
+        await this.billService.generateBillPdf(res, userId, milkmanId, { month, startDate, endDate }, req.user.role, targetRole);
     }
 };
 exports.BillController = BillController;
@@ -93,7 +105,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], BillController.prototype, "lockMonth", null);
+], BillController.prototype, "lockDateRange", null);
 __decorate([
     (0, common_1.Get)('locks'),
     __param(0, (0, common_1.Request)()),
@@ -103,15 +115,29 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BillController.prototype, "getLocks", null);
 __decorate([
+    (0, common_1.Get)('download-all'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Query)('month')),
+    __param(3, (0, common_1.Query)('startDate')),
+    __param(4, (0, common_1.Query)('endDate')),
+    __param(5, (0, common_1.Query)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], BillController.prototype, "downloadAllBills", null);
+__decorate([
     (0, common_1.Get)('download/:userId'),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('userId')),
     __param(2, (0, common_1.Res)()),
     __param(3, (0, common_1.Query)('month')),
-    __param(4, (0, common_1.Query)('milkmanId')),
-    __param(5, (0, common_1.Query)('role')),
+    __param(4, (0, common_1.Query)('startDate')),
+    __param(5, (0, common_1.Query)('endDate')),
+    __param(6, (0, common_1.Query)('milkmanId')),
+    __param(7, (0, common_1.Query)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, Object, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], BillController.prototype, "downloadBill", null);
 exports.BillController = BillController = __decorate([

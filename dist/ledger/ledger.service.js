@@ -20,6 +20,7 @@ const daily_ledger_entity_1 = require("../entities/daily-ledger.entity");
 const rates_history_entity_1 = require("../entities/rates-history.entity");
 const user_entity_1 = require("../entities/user.entity");
 const milkman_customer_entity_1 = require("../entities/milkman-customer.entity");
+const bill_lock_entity_1 = require("../entities/bill-lock.entity");
 let LedgerService = class LedgerService {
     dailyLedgerRepository;
     ratesHistoryRepository;
@@ -44,13 +45,28 @@ let LedgerService = class LedgerService {
                 if (!user) {
                     throw new common_1.BadRequestException(`User not found: ${entry.userId}`);
                 }
-                if (!user.isActive) {
-                    continue;
-                }
                 const mapping = await manager.findOne(milkman_customer_entity_1.MilkmanCustomer, {
                     where: { customerId: entry.userId },
                 });
                 const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+                if (mapping && !mapping.isActive) {
+                    continue;
+                }
+                const targetDate = new Date(dto.date);
+                const locks = await manager.find(bill_lock_entity_1.BillLock, {
+                    where: { milkmanId: targetMilkmanId, isLocked: true }
+                });
+                const isLocked = locks.some((l) => {
+                    if (l.userId && l.userId !== entry.userId)
+                        return false;
+                    const start = new Date(l.startDate);
+                    const end = new Date(l.endDate);
+                    const targetTime = targetDate.getTime();
+                    return targetTime >= start.getTime() && targetTime <= end.getTime();
+                });
+                if (isLocked) {
+                    throw new common_1.BadRequestException(`Cannot save entries. Date ${dto.date} is LOCKED for customer ${user.name}.`);
+                }
                 const ledgerType = dto.type ?? (user.role === 'farmer' ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR);
                 const targetRateType = ledgerType === daily_ledger_entity_1.LedgerType.BUY ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
                 const milkTypeVal = entry.milkType || 'Buffalo';

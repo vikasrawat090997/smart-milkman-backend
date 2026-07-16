@@ -198,7 +198,7 @@ export class UsersService {
 
   async findAllActive(milkmanId: string, role?: Role) {
     const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
-    const whereClause: any = { milkmanId: In(milkmanIds) };
+    const whereClause: any = { milkmanId: In(milkmanIds), isActive: true };
     if (role) {
       whereClause.relationshipRole = In([role, 'both']);
     }
@@ -211,7 +211,6 @@ export class UsersService {
     const users = await this.userRepository.find({
       where: {
         id: In(customerIds),
-        isActive: true,
       },
       relations: {
         ratesHistory: true,
@@ -223,6 +222,7 @@ export class UsersService {
     const mappingRoleMap = new Map<string, string>();
     const mappingMilkTypeMap = new Map<string, string>();
     const mappingMilkmanIdMap = new Map<string, string>();
+    const mappingActiveMap = new Map<string, boolean>();
     mappings.forEach((m) => {
       if (m.customName) {
         mappingMap.set(m.customerId, m.customName);
@@ -230,6 +230,7 @@ export class UsersService {
       mappingRoleMap.set(m.customerId, m.relationshipRole);
       mappingMilkTypeMap.set(m.customerId, m.milkType);
       mappingMilkmanIdMap.set(m.customerId, m.milkmanId);
+      mappingActiveMap.set(m.customerId, m.isActive);
     });
 
     // Filter rates specific to this milkman & apply custom name & override role & attach milkType & assignedMilkmanId
@@ -239,6 +240,9 @@ export class UsersService {
       }
       if (mappingRoleMap.has(user.id)) {
         user.role = mappingRoleMap.get(user.id) as any;
+      }
+      if (mappingActiveMap.has(user.id)) {
+        user.isActive = mappingActiveMap.get(user.id) as boolean;
       }
       (user as any).milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
       (user as any).assignedMilkmanId = mappingMilkmanIdMap.get(user.id);
@@ -303,6 +307,7 @@ export class UsersService {
       const mappingRoleMap = new Map<string, string>();
       const mappingMilkTypeMap = new Map<string, string>();
       const mappingMilkmanIdMap = new Map<string, string>();
+      const mappingActiveMap = new Map<string, boolean>();
       mappings.forEach((m) => {
         if (m.customName) {
           mappingMap.set(m.customerId, m.customName);
@@ -310,6 +315,7 @@ export class UsersService {
         mappingRoleMap.set(m.customerId, m.relationshipRole);
         mappingMilkTypeMap.set(m.customerId, m.milkType);
         mappingMilkmanIdMap.set(m.customerId, m.milkmanId);
+        mappingActiveMap.set(m.customerId, m.isActive);
       });
 
       // Filter rates specific to this milkman & apply custom name & override role & attach milkType & assignedMilkmanId
@@ -319,6 +325,9 @@ export class UsersService {
         }
         if (mappingRoleMap.has(user.id)) {
           user.role = mappingRoleMap.get(user.id) as any;
+        }
+        if (mappingActiveMap.has(user.id)) {
+          user.isActive = mappingActiveMap.get(user.id) as boolean;
         }
         (user as any).milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
         (user as any).assignedMilkmanId = mappingMilkmanIdMap.get(user.id);
@@ -512,6 +521,19 @@ export class UsersService {
       where: { customerId: userId, milkmanId: In(milkmanIds) },
     });
 
+    if (dto.assignedMilkmanId && mapping) {
+      if (dto.assignedMilkmanId !== milkmanId) {
+        const isSub = await this.userRepository.findOne({
+          where: { id: dto.assignedMilkmanId, parentMilkmanId: milkmanId },
+        });
+        if (!isSub) {
+          throw new BadRequestException('Assigned milkman is not associated with your account');
+        }
+      }
+      mapping.milkmanId = dto.assignedMilkmanId;
+      await this.milkmanCustomerRepository.save(mapping);
+    }
+
     if (dto.name !== undefined && mapping) {
       mapping.customName = dto.name;
       await this.milkmanCustomerRepository.save(mapping);
@@ -546,21 +568,10 @@ export class UsersService {
       await this.milkmanCustomerRepository.save(mapping);
     }
 
-    if (dto.assignedMilkmanId && mapping) {
-      if (dto.assignedMilkmanId !== milkmanId) {
-        const isSub = await this.userRepository.findOne({
-          where: { id: dto.assignedMilkmanId, parentMilkmanId: milkmanId },
-        });
-        if (!isSub) {
-          throw new BadRequestException('Assigned milkman is not associated with your account');
-        }
-      }
-      mapping.milkmanId = dto.assignedMilkmanId;
-      await this.milkmanCustomerRepository.save(mapping);
-    }
     if (dto.mobileNumber !== undefined) {
+      const targetRole = dto.role || user.role;
       const existing = await this.userRepository.findOne({
-        where: { mobileNumber: dto.mobileNumber },
+        where: { mobileNumber: dto.mobileNumber, role: targetRole as any },
       });
       if (existing && existing.id !== userId) {
         throw new ConflictException('Mobile number is already registered by another user');
@@ -570,51 +581,54 @@ export class UsersService {
     if (dto.passwordPin !== undefined && dto.passwordPin !== '') {
       user.passwordPin = await bcrypt.hash(dto.passwordPin, 10);
     }
-    if (dto.isActive !== undefined) user.isActive = dto.isActive;
+    if (dto.isActive !== undefined && mapping) {
+      mapping.isActive = dto.isActive;
+      if (!dto.isActive) {
+        mapping.deactivatedAt = new Date();
+      } else {
+        mapping.deactivatedAt = null;
+      }
+      await this.milkmanCustomerRepository.save(mapping);
+    }
     if (dto.address !== undefined) user.address = dto.address;
-    if (dto.role !== undefined) {
-      const mapping = await this.milkmanCustomerRepository.findOne({
-        where: { milkmanId, customerId: userId },
-      });
-      if (mapping) {
-        const oldMappingRole = mapping.relationshipRole as Role;
-        mapping.relationshipRole = dto.role;
-        await this.milkmanCustomerRepository.save(mapping);
+    if (dto.role !== undefined && mapping) {
+      const oldMappingRole = mapping.relationshipRole as Role;
+      mapping.relationshipRole = dto.role;
+      await this.milkmanCustomerRepository.save(mapping);
 
-        // Synchronize global role
-        await this.syncUserGlobalRole(userId);
+      // Synchronize global role
+      await this.syncUserGlobalRole(userId);
 
-        // Reload from DB to have the calculated global user role
-        const updatedUser = await this.userRepository.findOne({ where: { id: userId } });
-        if (updatedUser) {
-          user.role = updatedUser.role;
-        }
+      // Reload from DB to have the calculated global user role
+      const updatedUser = await this.userRepository.findOne({ where: { id: userId } });
+      if (updatedUser) {
+        user.role = updatedUser.role;
+      }
 
-        // Initialize missing rates for this milkman if mapping role upgraded to BOTH
-        const newMappingRole = dto.role as Role;
-        if (newMappingRole === Role.BOTH && oldMappingRole !== Role.BOTH) {
-          const existingRates = await this.ratesHistoryRepository.find({
-            where: { userId: user.id, milkmanId },
+      // Initialize missing rates for this milkman if mapping role upgraded to BOTH
+      const newMappingRole = dto.role as Role;
+      if (newMappingRole === Role.BOTH && oldMappingRole !== Role.BOTH) {
+        const existingRates = await this.ratesHistoryRepository.find({
+          where: { userId: user.id, milkmanId: mapping.milkmanId },
+        });
+        const existingTypes = new Set(existingRates.map((r) => r.rateType));
+        const requiredTypes = this.getRateTypesForRole(Role.BOTH);
+        const missingTypes = requiredTypes.filter((t) => !existingTypes.has(t));
+
+        for (const rateType of missingTypes) {
+          const latestExisting = await this.ratesHistoryRepository.findOne({
+            where: { userId: user.id, milkmanId: mapping.milkmanId },
+            order: { startDate: 'DESC' },
           });
-          const existingTypes = new Set(existingRates.map((r) => r.rateType));
-          const requiredTypes = this.getRateTypesForRole(Role.BOTH);
-          const missingTypes = requiredTypes.filter((t) => !existingTypes.has(t));
-
-          for (const rateType of missingTypes) {
-            const latestExisting = await this.ratesHistoryRepository.findOne({
-              where: { userId: user.id, milkmanId },
-              order: { startDate: 'DESC' },
-            });
-            const defaultRate = latestExisting ? Number(latestExisting.ratePerLiter) : 0;
-            const newRate = this.ratesHistoryRepository.create({
-              userId: user.id,
-              milkmanId,
-              ratePerLiter: defaultRate,
-              startDate: new Date(),
-              rateType,
-            });
-            await this.ratesHistoryRepository.save(newRate);
-          }
+          const defaultRate = latestExisting ? Number(latestExisting.ratePerLiter) : 0;
+          const newRate = this.ratesHistoryRepository.create({
+            userId: user.id,
+            milkmanId: mapping.milkmanId,
+            ratePerLiter: defaultRate,
+            startDate: new Date(),
+            rateType,
+          });
+          await this.ratesHistoryRepository.save(newRate);
         }
       }
     }

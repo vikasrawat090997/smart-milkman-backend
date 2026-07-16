@@ -13,6 +13,7 @@ export declare class UsersController {
         mobileNumber: string;
         role: Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;
@@ -29,6 +30,7 @@ export declare class UsersController {
         mobileNumber: string;
         role: Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;
@@ -51,6 +53,7 @@ export declare class UsersController {
         mobileNumber: string;
         role: Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;
@@ -67,6 +70,7 @@ export declare class UsersController {
         mobileNumber: string;
         role: Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;
@@ -83,6 +87,7 @@ export declare class UsersController {
         mobileNumber: string;
         role: Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;

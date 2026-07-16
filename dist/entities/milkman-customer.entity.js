@@ -19,6 +19,8 @@ let MilkmanCustomer = class MilkmanCustomer {
     customName;
     relationshipRole;
     milkType;
+    isActive;
+    deactivatedAt;
     milkman;
     customer;
 };
@@ -47,6 +49,14 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' }),
     __metadata("design:type", String)
 ], MilkmanCustomer.prototype, "milkType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: true, name: 'is_active' }),
+    __metadata("design:type", Boolean)
+], MilkmanCustomer.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true, name: 'deactivated_at' }),
+    __metadata("design:type", Object)
+], MilkmanCustomer.prototype, "deactivatedAt", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: 'CASCADE' }),
     (0, typeorm_1.JoinColumn)({ name: 'milkman_id' }),

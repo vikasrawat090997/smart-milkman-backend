@@ -16,6 +16,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         mobileNumber: string;
         role: import("../entities/user.entity").Role;
         isActive: boolean;
+        deactivatedAt?: Date | null;
         address: string;
         milkTypes: string;
         parentMilkmanId: string;
