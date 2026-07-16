@@ -72,7 +72,7 @@ let UsersService = class UsersService {
             return [daily_ledger_entity_1.LedgerType.SELL_REGULAR];
         return [daily_ledger_entity_1.LedgerType.BUY, daily_ledger_entity_1.LedgerType.SELL_REGULAR];
     }
-    async createRates(manager, userId, milkmanId, ratePerLiter, sellRatePerLiter, role) {
+    async createRates(manager, userId, milkmanId, ratePerLiter, sellRatePerLiter, role, milkType = 'Buffalo') {
         const types = this.getRateTypesForRole(role);
         for (const rateType of types) {
             const rateVal = rateType === daily_ledger_entity_1.LedgerType.BUY ? ratePerLiter : (sellRatePerLiter ?? ratePerLiter);
@@ -82,13 +82,15 @@ let UsersService = class UsersService {
                 ratePerLiter: rateVal,
                 startDate: new Date(),
                 rateType,
+                milkType,
             });
             await manager.save(rates_history_entity_1.RatesHistory, rate);
         }
     }
     async createUser(milkmanId, dto) {
+        const targetRole = dto.role || user_entity_1.Role.BOTH;
         const existing = await this.userRepository.findOne({
-            where: { mobileNumber: dto.mobileNumber },
+            where: { mobileNumber: dto.mobileNumber, role: (0, typeorm_2.Not)(user_entity_1.Role.MILKMAN) },
         });
         if (existing) {
             const existingMapping = await this.milkmanCustomerRepository.findOne({
@@ -97,15 +99,27 @@ let UsersService = class UsersService {
             if (existingMapping) {
                 throw new common_1.ConflictException('This customer is already added to your directory');
             }
+            let milkTypeList = dto.milkType || 'Buffalo';
+            if (dto.rates && dto.rates.length > 0) {
+                milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+            }
             await this.dataSource.transaction(async (manager) => {
                 const mapping = manager.create(milkman_customer_entity_1.MilkmanCustomer, {
                     milkmanId,
                     customerId: existing.id,
                     customName: dto.name,
-                    relationshipRole: dto.role,
+                    relationshipRole: targetRole,
+                    milkType: milkTypeList,
                 });
                 await manager.save(milkman_customer_entity_1.MilkmanCustomer, mapping);
-                await this.createRates(manager, existing.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role);
+                if (dto.rates && dto.rates.length > 0) {
+                    for (const r of dto.rates) {
+                        await this.createRates(manager, existing.id, milkmanId, r.ratePerLiter, r.sellRatePerLiter, targetRole, r.milkType);
+                    }
+                }
+                else {
+                    await this.createRates(manager, existing.id, milkmanId, dto.ratePerLiter || 0, dto.sellRatePerLiter, targetRole, dto.milkType || 'Buffalo');
+                }
             });
             await this.syncUserGlobalRole(existing.id);
             const updatedUser = await this.userRepository.findOne({ where: { id: existing.id } });
@@ -118,18 +132,30 @@ let UsersService = class UsersService {
                 name: dto.name,
                 mobileNumber: dto.mobileNumber,
                 passwordPin: hashedPin,
-                role: dto.role,
+                role: targetRole,
                 address: dto.address,
             });
             const saved = await manager.save(user_entity_1.User, user);
+            let milkTypeList = dto.milkType || 'Buffalo';
+            if (dto.rates && dto.rates.length > 0) {
+                milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+            }
             const mapping = manager.create(milkman_customer_entity_1.MilkmanCustomer, {
                 milkmanId,
                 customerId: saved.id,
                 customName: dto.name,
-                relationshipRole: dto.role,
+                relationshipRole: targetRole,
+                milkType: milkTypeList,
             });
             await manager.save(milkman_customer_entity_1.MilkmanCustomer, mapping);
-            await this.createRates(manager, saved.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role);
+            if (dto.rates && dto.rates.length > 0) {
+                for (const r of dto.rates) {
+                    await this.createRates(manager, saved.id, milkmanId, r.ratePerLiter, r.sellRatePerLiter, targetRole, r.milkType);
+                }
+            }
+            else {
+                await this.createRates(manager, saved.id, milkmanId, dto.ratePerLiter || 0, dto.sellRatePerLiter, targetRole, dto.milkType || 'Buffalo');
+            }
             return saved;
         });
         await this.syncUserGlobalRole(savedUser.id);
@@ -158,11 +184,13 @@ let UsersService = class UsersService {
         });
         const mappingMap = new Map();
         const mappingRoleMap = new Map();
+        const mappingMilkTypeMap = new Map();
         mappings.forEach((m) => {
             if (m.customName) {
                 mappingMap.set(m.customerId, m.customName);
             }
             mappingRoleMap.set(m.customerId, m.relationshipRole);
+            mappingMilkTypeMap.set(m.customerId, m.milkType);
         });
         users.forEach((user) => {
             if (mappingMap.has(user.id)) {
@@ -171,6 +199,7 @@ let UsersService = class UsersService {
             if (mappingRoleMap.has(user.id)) {
                 user.role = mappingRoleMap.get(user.id);
             }
+            user.milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
             if (user.ratesHistory) {
                 user.ratesHistory = user.ratesHistory.filter((r) => r.milkmanId === milkmanId || r.milkmanId === null);
                 user.ratesHistory.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
@@ -200,11 +229,13 @@ let UsersService = class UsersService {
         });
         const mappingMap = new Map();
         const mappingRoleMap = new Map();
+        const mappingMilkTypeMap = new Map();
         mappings.forEach((m) => {
             if (m.customName) {
                 mappingMap.set(m.customerId, m.customName);
             }
             mappingRoleMap.set(m.customerId, m.relationshipRole);
+            mappingMilkTypeMap.set(m.customerId, m.milkType);
         });
         users.forEach((user) => {
             if (mappingMap.has(user.id)) {
@@ -213,6 +244,7 @@ let UsersService = class UsersService {
             if (mappingRoleMap.has(user.id)) {
                 user.role = mappingRoleMap.get(user.id);
             }
+            user.milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
             if (user.ratesHistory) {
                 user.ratesHistory = user.ratesHistory.filter((r) => r.milkmanId === milkmanId || r.milkmanId === null);
                 user.ratesHistory.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
@@ -222,7 +254,7 @@ let UsersService = class UsersService {
     }
     async findByMobile(mobileNumber) {
         const user = await this.userRepository.findOne({
-            where: { mobileNumber },
+            where: { mobileNumber, role: (0, typeorm_2.Not)(user_entity_1.Role.MILKMAN) },
         });
         if (!user)
             return null;
@@ -245,16 +277,20 @@ let UsersService = class UsersService {
             }
             user.ratesHistory.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
         }
+        let mappingMilkType = 'Buffalo';
         if (milkmanId) {
             const mapping = await this.milkmanCustomerRepository.findOne({
                 where: { milkmanId, customerId: id },
             });
-            if (mapping && mapping.customName) {
-                user.name = mapping.customName;
+            if (mapping) {
+                if (mapping.customName) {
+                    user.name = mapping.customName;
+                }
+                mappingMilkType = mapping.milkType || 'Buffalo';
             }
         }
         const { passwordPin, ...result } = user;
-        return result;
+        return { ...result, milkType: mappingMilkType };
     }
     async updateRate(milkmanId, userId, dto) {
         const user = await this.userRepository.findOne({
@@ -269,6 +305,7 @@ let UsersService = class UsersService {
             ratePerLiter: dto.ratePerLiter,
             startDate: new Date(dto.startDate + 'T00:00:00Z'),
             rateType: dto.rateType ?? undefined,
+            milkType: dto.milkType || 'Buffalo',
         });
         return this.ratesHistoryRepository.save(rate);
     }
@@ -278,29 +315,37 @@ let UsersService = class UsersService {
         });
         const customerIds = mappings.map((m) => m.customerId);
         if (customerIds.length === 0) {
-            return { message: `No active users found for role: ${dto.role}`, count: 0 };
+            return { message: `No active users found`, count: 0 };
         }
+        const targetRoles = dto.role === user_entity_1.Role.FARMER
+            ? [user_entity_1.Role.FARMER, user_entity_1.Role.BOTH]
+            : [user_entity_1.Role.CONSUMER, user_entity_1.Role.BOTH];
         const users = await this.userRepository.find({
-            where: { id: (0, typeorm_2.In)(customerIds), role: dto.role, isActive: true },
+            where: { id: (0, typeorm_2.In)(customerIds), role: (0, typeorm_2.In)(targetRoles), isActive: true },
         });
         if (users.length === 0) {
             return { message: `No active users found for role: ${dto.role}`, count: 0 };
         }
-        const types = this.getRateTypesForRole(dto.role);
-        const rateEntries = users.flatMap((user) => types.map((rateType) => this.ratesHistoryRepository.create({
+        const rateType = dto.role === user_entity_1.Role.FARMER ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
+        const rateEntries = users.map((user) => this.ratesHistoryRepository.create({
             userId: user.id,
             milkmanId,
             ratePerLiter: dto.ratePerLiter,
             startDate: new Date(dto.startDate + 'T00:00:00Z'),
             rateType,
-        })));
+            milkType: dto.milkType || 'Buffalo',
+        }));
         await this.ratesHistoryRepository.save(rateEntries);
         return {
-            message: `Updated rate to Rs. ${dto.ratePerLiter} for all ${users.length} active ${dto.role}s.`,
+            message: `Updated rate to Rs. ${dto.ratePerLiter} for all ${users.length} active ${dto.role === user_entity_1.Role.FARMER ? 'Seller' : 'Buyer'}s.`,
             count: users.length,
         };
     }
     async syncUserGlobalRole(userId) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (user && user.role === user_entity_1.Role.MILKMAN) {
+            return;
+        }
         const mappings = await this.milkmanCustomerRepository.find({
             where: { customerId: userId },
         });
@@ -339,6 +384,45 @@ let UsersService = class UsersService {
             });
             if (mapping) {
                 mapping.customName = dto.name;
+                await this.milkmanCustomerRepository.save(mapping);
+            }
+        }
+        if (dto.rates && dto.rates.length > 0) {
+            const milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+            const mapping = await this.milkmanCustomerRepository.findOne({
+                where: { milkmanId, customerId: userId },
+            });
+            if (mapping) {
+                mapping.milkType = milkTypeList;
+                await this.milkmanCustomerRepository.save(mapping);
+            }
+            const todayDateStr = new Date().toISOString().split('T')[0];
+            for (const r of dto.rates) {
+                if (user.role === user_entity_1.Role.FARMER || user.role === user_entity_1.Role.BOTH) {
+                    await this.updateRate(milkmanId, userId, {
+                        ratePerLiter: r.ratePerLiter,
+                        startDate: todayDateStr,
+                        rateType: daily_ledger_entity_1.LedgerType.BUY,
+                        milkType: r.milkType,
+                    });
+                }
+                if (user.role === user_entity_1.Role.CONSUMER || user.role === user_entity_1.Role.BOTH) {
+                    const sellRateVal = user.role === user_entity_1.Role.BOTH ? (r.sellRatePerLiter ?? r.ratePerLiter) : (r.sellRatePerLiter || r.ratePerLiter);
+                    await this.updateRate(milkmanId, userId, {
+                        ratePerLiter: sellRateVal,
+                        startDate: todayDateStr,
+                        rateType: daily_ledger_entity_1.LedgerType.SELL_REGULAR,
+                        milkType: r.milkType,
+                    });
+                }
+            }
+        }
+        else if (dto.milkType !== undefined) {
+            const mapping = await this.milkmanCustomerRepository.findOne({
+                where: { milkmanId, customerId: userId },
+            });
+            if (mapping) {
+                mapping.milkType = dto.milkType;
                 await this.milkmanCustomerRepository.save(mapping);
             }
         }
@@ -426,6 +510,21 @@ let UsersService = class UsersService {
             milkmenList = milkmenList.filter((m) => validMilkmanIds.has(m.id));
         }
         return milkmenList;
+    }
+    async getMilkTypes(milkmanId) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        if (!user)
+            throw new common_1.NotFoundException('Milkman not found');
+        const types = user.milkTypes || 'Buffalo,Cow';
+        return types.split(',').map((t) => t.trim()).filter(Boolean);
+    }
+    async updateMilkTypes(milkmanId, milkTypes) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        if (!user)
+            throw new common_1.NotFoundException('Milkman not found');
+        user.milkTypes = milkTypes.map((t) => t.trim()).filter(Boolean).join(',');
+        await this.userRepository.save(user);
+        return milkTypes;
     }
 };
 exports.UsersService = UsersService;

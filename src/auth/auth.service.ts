@@ -15,28 +15,59 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { mobileNumber, passwordPin } = loginDto;
+    const { mobileNumber, passwordPin, role } = loginDto;
     
-    // Look up the user using TypeORM
-    const user = await this.userRepository.findOne({
+    // Find all users matching the mobile number
+    const users = await this.userRepository.find({
       where: { mobileNumber },
     });
 
-    if (!user) {
+    if (users.length === 0) {
       throw new UnauthorizedException('Invalid mobile number or PIN');
     }
 
-    if (!user.isActive) {
+    const activeUsers = users.filter(u => u.isActive);
+    if (activeUsers.length === 0) {
       throw new UnauthorizedException('User account is inactive');
     }
 
-    // Verify hashed 4-digit PIN
-    const isPinValid = await bcrypt.compare(passwordPin, user.passwordPin);
-    if (!isPinValid) {
+    // Verify hashed PIN against matching active accounts
+    const matchingUsers: User[] = [];
+    for (const u of activeUsers) {
+      const isPinValid = await bcrypt.compare(passwordPin, u.passwordPin);
+      if (isPinValid) {
+        matchingUsers.push(u);
+      }
+    }
+
+    if (matchingUsers.length === 0) {
       throw new UnauthorizedException('Invalid mobile number or PIN');
     }
 
-    // Generate JWT payload
+    // If multiple active users match the PIN:
+    if (matchingUsers.length > 1) {
+      if (role) {
+        const chosenUser = matchingUsers.find(u => u.role === role);
+        if (chosenUser) {
+          return this.generateLoginResponse(chosenUser);
+        }
+      }
+      return {
+        selectRole: true,
+        options: matchingUsers.map(u => ({
+          id: u.id,
+          name: u.name,
+          role: u.role,
+          mobileNumber: u.mobileNumber,
+        })),
+      };
+    }
+
+    // Exactly one matching account
+    return this.generateLoginResponse(matchingUsers[0]);
+  }
+
+  private generateLoginResponse(user: User) {
     const payload = { sub: user.id, mobileNumber: user.mobileNumber, role: user.role };
     
     return {

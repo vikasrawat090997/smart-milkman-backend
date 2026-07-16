@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsEnum, IsOptional, Length, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString, IsEnum, IsOptional, Length, IsNumber, IsArray } from 'class-validator';
 import { Role } from '../../entities/user.entity';
 import { LedgerType } from '../../entities/daily-ledger.entity';
 
@@ -20,9 +20,9 @@ export class CreateUserDto {
   @IsEnum(Role)
   role: Role;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  ratePerLiter: number;
+  ratePerLiter?: number;
 
   @IsOptional()
   @IsNumber()
@@ -30,5 +30,17 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
+  milkType?: string;
+
+  @IsOptional()
+  @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsArray()
+  rates?: Array<{
+    milkType: string;
+    ratePerLiter: number;
+    sellRatePerLiter?: number;
+  }>;
 }

@@ -29,6 +29,7 @@ let DailyLedger = class DailyLedger {
     milkmanId;
     date;
     slot;
+    milkType;
     quantityLiters;
     type;
     rateApplied;
@@ -57,6 +58,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: Slot }),
     __metadata("design:type", String)
 ], DailyLedger.prototype, "slot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' }),
+    __metadata("design:type", String)
+], DailyLedger.prototype, "milkType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0.00, name: 'quantity_liters' }),
     __metadata("design:type", Number)
@@ -91,6 +96,6 @@ __decorate([
 ], DailyLedger.prototype, "milkman", void 0);
 exports.DailyLedger = DailyLedger = __decorate([
     (0, typeorm_1.Entity)({ name: 'daily_ledger' }),
-    (0, typeorm_1.Unique)('unique_user_milkman_date_slot_type', ['userId', 'milkmanId', 'date', 'slot', 'type'])
+    (0, typeorm_1.Unique)('unique_user_milkman_date_slot_type_milk', ['userId', 'milkmanId', 'date', 'slot', 'type', 'milkType'])
 ], DailyLedger);
 //# sourceMappingURL=daily-ledger.entity.js.map

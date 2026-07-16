@@ -29,6 +29,7 @@ let User = class User {
     role;
     isActive;
     address;
+    milkTypes;
     createdAt;
     ratesHistory;
     dailyLedger;
@@ -46,7 +47,7 @@ __decorate([
 ], User.prototype, "name", void 0);
 __decorate([
     (0, typeorm_1.Index)('idx_mobile'),
-    (0, typeorm_1.Column)({ type: 'varchar', length: 15, unique: true, name: 'mobile_number' }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 15, name: 'mobile_number' }),
     __metadata("design:type", String)
 ], User.prototype, "mobileNumber", void 0);
 __decorate([
@@ -65,6 +66,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], User.prototype, "address", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', name: 'milk_types', nullable: true }),
+    __metadata("design:type", String)
+], User.prototype, "milkTypes", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' }),
     __metadata("design:type", Date)
@@ -86,6 +91,7 @@ __decorate([
     __metadata("design:type", Array)
 ], User.prototype, "recordedPayments", void 0);
 exports.User = User = __decorate([
-    (0, typeorm_1.Entity)({ name: 'users' })
+    (0, typeorm_1.Entity)({ name: 'users' }),
+    (0, typeorm_1.Unique)(['mobileNumber', 'role'])
 ], User);
 //# sourceMappingURL=user.entity.js.map

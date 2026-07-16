@@ -14,6 +14,7 @@ export declare class DailyLedger {
     milkmanId: string;
     date: Date;
     slot: Slot;
+    milkType: string;
     quantityLiters: number;
     type: LedgerType;
     rateApplied: number;

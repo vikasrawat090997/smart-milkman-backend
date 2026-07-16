@@ -13,7 +13,7 @@ export enum LedgerType {
 }
 
 @Entity({ name: 'daily_ledger' })
-@Unique('unique_user_milkman_date_slot_type', ['userId', 'milkmanId', 'date', 'slot', 'type'])
+@Unique('unique_user_milkman_date_slot_type_milk', ['userId', 'milkmanId', 'date', 'slot', 'type', 'milkType'])
 export class DailyLedger {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -29,6 +29,9 @@ export class DailyLedger {
 
   @Column({ type: 'enum', enum: Slot })
   slot: Slot;
+
+  @Column({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' })
+  milkType: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.00, name: 'quantity_liters' })
   quantityLiters: number;

@@ -7,6 +7,7 @@ export declare class RatesHistory {
     ratePerLiter: number;
     startDate: Date;
     rateType: LedgerType;
+    milkType: string;
     user: User;
     milkman: User;
 }

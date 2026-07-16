@@ -16,6 +16,7 @@ class UpdateRateDto {
     ratePerLiter;
     startDate;
     rateType;
+    milkType;
 }
 exports.UpdateRateDto = UpdateRateDto;
 __decorate([
@@ -34,4 +35,9 @@ __decorate([
     (0, class_validator_1.IsEnum)(daily_ledger_entity_1.LedgerType),
     __metadata("design:type", String)
 ], UpdateRateDto.prototype, "rateType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateRateDto.prototype, "milkType", void 0);
 //# sourceMappingURL=update-rate.dto.js.map

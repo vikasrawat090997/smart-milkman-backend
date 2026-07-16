@@ -16,7 +16,7 @@ export class LedgerService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async bulkSave(milkmanId: string, dto: BulkSaveDto) {
     // Run bulk entries in a single optimized database transaction
@@ -24,8 +24,8 @@ export class LedgerService {
       const results: DailyLedger[] = [];
 
       for (const entry of dto.entries) {
-        const qty = entry.quantityLiters !== undefined && entry.quantityLiters !== null 
-          ? Number(entry.quantityLiters) 
+        const qty = entry.quantityLiters !== undefined && entry.quantityLiters !== null
+          ? Number(entry.quantityLiters)
           : 0;
 
         // Fetch user details to determine role & check active status
@@ -48,11 +48,12 @@ export class LedgerService {
         const targetRateType = ledgerType === LedgerType.BUY ? LedgerType.BUY : LedgerType.SELL_REGULAR;
 
         // Query the active rate from rates_history where start_date <= daily_ledger.date
+        const milkTypeVal = entry.milkType || 'Buffalo';
         const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
         let rateRecords = await manager.find(RatesHistory, {
           where: [
-            { userId: entry.userId, milkmanId, rateType: targetRateType, startDate: LessThanOrEqual(ledgerDateObj) },
-            { userId: entry.userId, milkmanId: IsNull(), rateType: targetRateType, startDate: LessThanOrEqual(ledgerDateObj) }
+            { userId: entry.userId, milkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
+            { userId: entry.userId, milkmanId: IsNull(), rateType: targetRateType, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) }
           ],
           order: { startDate: 'DESC' },
         });
@@ -61,17 +62,31 @@ export class LedgerService {
         if (rateRecords.length === 0) {
           rateRecords = await manager.find(RatesHistory, {
             where: [
-              { userId: entry.userId, milkmanId, startDate: LessThanOrEqual(ledgerDateObj) },
-              { userId: entry.userId, milkmanId: IsNull(), startDate: LessThanOrEqual(ledgerDateObj) }
+              { userId: entry.userId, milkmanId, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
+              { userId: entry.userId, milkmanId: IsNull(), milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) }
             ],
             order: { startDate: 'DESC' },
           });
         }
 
         const rateRecord = rateRecords.length > 0 ? rateRecords[0] : null;
-        const rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
+        let rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
 
-        // Find existing ledger entry for the same user, milkman, date, slot, and type
+        if (rateApplied === 0) {
+          const nonZeroRecords = await manager.find(RatesHistory, {
+            where: [
+              { userId: entry.userId, milkmanId, milkType: milkTypeVal },
+              { userId: entry.userId, milkmanId: IsNull(), milkType: milkTypeVal }
+            ],
+            order: { startDate: 'DESC' },
+          });
+          const nonZeroRecord = nonZeroRecords.find(r => Number(r.ratePerLiter) > 0);
+          if (nonZeroRecord) {
+            rateApplied = Number(nonZeroRecord.ratePerLiter);
+          }
+        }
+
+        // Find existing ledger entry for the same user, milkman, date, slot, type, and milkType
         let ledgerItem = await manager.findOne(DailyLedger, {
           where: {
             userId: entry.userId,
@@ -79,6 +94,7 @@ export class LedgerService {
             date: dto.date as any,
             slot: dto.slot,
             type: ledgerType,
+            milkType: milkTypeVal,
           },
         });
 
@@ -93,6 +109,7 @@ export class LedgerService {
             milkmanId,
             date: dto.date as any,
             slot: dto.slot,
+            milkType: milkTypeVal,
             quantityLiters: qty,
             rateApplied,
             type: ledgerType,

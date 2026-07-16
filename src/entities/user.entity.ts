@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, Index, Unique } from 'typeorm';
 import { RatesHistory } from './rates-history.entity';
 import { DailyLedger } from './daily-ledger.entity';
 import { PaymentsLedger } from './payments-ledger.entity';
@@ -11,6 +11,7 @@ export enum Role {
 }
 
 @Entity({ name: 'users' })
+@Unique(['mobileNumber', 'role'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -19,7 +20,7 @@ export class User {
   name: string;
 
   @Index('idx_mobile')
-  @Column({ type: 'varchar', length: 15, unique: true, name: 'mobile_number' })
+  @Column({ type: 'varchar', length: 15, name: 'mobile_number' })
   mobileNumber: string;
 
   @Column({ type: 'varchar', length: 255, name: 'password_pin' })
@@ -33,6 +34,9 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   address: string;
+
+  @Column({ type: 'text', name: 'milk_types', nullable: true })
+  milkTypes: string;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
   createdAt: Date;

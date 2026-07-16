@@ -14,6 +14,7 @@ export declare class UsersController {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -28,6 +29,7 @@ export declare class UsersController {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -47,6 +49,7 @@ export declare class UsersController {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -54,12 +57,14 @@ export declare class UsersController {
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }>;
     findOne(req: any, id: string): Promise<{
+        milkType: string;
         id: string;
         name: string;
         mobileNumber: string;
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -74,10 +79,13 @@ export declare class UsersController {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
         payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }>;
+    getMilkTypes(req: any): Promise<string[]>;
+    updateMilkTypes(req: any, milkTypes: string[]): Promise<string[]>;
 }

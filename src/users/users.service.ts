@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, Not } from 'typeorm';
 import { User, Role } from '../entities/user.entity';
 import { RatesHistory } from '../entities/rates-history.entity';
 import { MilkmanCustomer } from '../entities/milkman-customer.entity';
@@ -36,6 +36,7 @@ export class UsersService {
     ratePerLiter: number,
     sellRatePerLiter: number | undefined,
     role: Role,
+    milkType: string = 'Buffalo',
   ) {
     const types = this.getRateTypesForRole(role);
     for (const rateType of types) {
@@ -46,14 +47,17 @@ export class UsersService {
         ratePerLiter: rateVal,
         startDate: new Date(),
         rateType,
+        milkType,
       });
       await manager.save(RatesHistory, rate);
     }
   }
 
   async createUser(milkmanId: string, dto: CreateUserDto) {
+    const targetRole = dto.role || Role.BOTH;
+
     const existing = await this.userRepository.findOne({
-      where: { mobileNumber: dto.mobileNumber },
+      where: { mobileNumber: dto.mobileNumber, role: Not(Role.MILKMAN) },
     });
 
     if (existing) {
@@ -66,18 +70,30 @@ export class UsersService {
         throw new ConflictException('This customer is already added to your directory');
       }
 
+      let milkTypeList = dto.milkType || 'Buffalo';
+      if (dto.rates && dto.rates.length > 0) {
+        milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+      }
+
       // Associate existing user with this milkman
       await this.dataSource.transaction(async (manager) => {
         const mapping = manager.create(MilkmanCustomer, {
           milkmanId,
           customerId: existing.id,
           customName: dto.name,
-          relationshipRole: dto.role,
+          relationshipRole: targetRole,
+          milkType: milkTypeList,
         });
         await manager.save(MilkmanCustomer, mapping);
 
         // Set rate(s) for this milkman
-        await this.createRates(manager, existing.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role as Role);
+        if (dto.rates && dto.rates.length > 0) {
+          for (const r of dto.rates) {
+            await this.createRates(manager, existing.id, milkmanId, r.ratePerLiter, r.sellRatePerLiter, targetRole, r.milkType);
+          }
+        } else {
+          await this.createRates(manager, existing.id, milkmanId, dto.ratePerLiter || 0, dto.sellRatePerLiter, targetRole, dto.milkType || 'Buffalo');
+        }
       });
 
       // Synchronize global role
@@ -95,22 +111,34 @@ export class UsersService {
         name: dto.name,
         mobileNumber: dto.mobileNumber,
         passwordPin: hashedPin,
-        role: dto.role as Role,
+        role: targetRole,
         address: dto.address,
       });
       const saved = await manager.save(User, user);
+
+      let milkTypeList = dto.milkType || 'Buffalo';
+      if (dto.rates && dto.rates.length > 0) {
+        milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+      }
 
       // Create mapping
       const mapping = manager.create(MilkmanCustomer, {
         milkmanId,
         customerId: saved.id,
         customName: dto.name,
-        relationshipRole: dto.role,
+        relationshipRole: targetRole,
+        milkType: milkTypeList,
       });
       await manager.save(MilkmanCustomer, mapping);
 
       // Initialize rate(s) specific to this milkman
-      await this.createRates(manager, saved.id, milkmanId, dto.ratePerLiter, dto.sellRatePerLiter, dto.role as Role);
+      if (dto.rates && dto.rates.length > 0) {
+        for (const r of dto.rates) {
+          await this.createRates(manager, saved.id, milkmanId, r.ratePerLiter, r.sellRatePerLiter, targetRole, r.milkType);
+        }
+      } else {
+        await this.createRates(manager, saved.id, milkmanId, dto.ratePerLiter || 0, dto.sellRatePerLiter, targetRole, dto.milkType || 'Buffalo');
+      }
 
       return saved;
     });
@@ -143,14 +171,16 @@ export class UsersService {
 
     const mappingMap = new Map<string, string>();
     const mappingRoleMap = new Map<string, string>();
+    const mappingMilkTypeMap = new Map<string, string>();
     mappings.forEach((m) => {
       if (m.customName) {
         mappingMap.set(m.customerId, m.customName);
       }
       mappingRoleMap.set(m.customerId, m.relationshipRole);
+      mappingMilkTypeMap.set(m.customerId, m.milkType);
     });
 
-    // Filter rates specific to this milkman & apply custom name & override role
+    // Filter rates specific to this milkman & apply custom name & override role & attach milkType
     users.forEach((user) => {
       if (mappingMap.has(user.id)) {
         user.name = mappingMap.get(user.id) as string;
@@ -158,6 +188,7 @@ export class UsersService {
       if (mappingRoleMap.has(user.id)) {
         user.role = mappingRoleMap.get(user.id) as any;
       }
+      (user as any).milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
       if (user.ratesHistory) {
         user.ratesHistory = user.ratesHistory.filter(
           (r) => r.milkmanId === milkmanId || r.milkmanId === null
@@ -194,14 +225,16 @@ export class UsersService {
 
     const mappingMap = new Map<string, string>();
     const mappingRoleMap = new Map<string, string>();
+    const mappingMilkTypeMap = new Map<string, string>();
     mappings.forEach((m) => {
       if (m.customName) {
         mappingMap.set(m.customerId, m.customName);
       }
       mappingRoleMap.set(m.customerId, m.relationshipRole);
+      mappingMilkTypeMap.set(m.customerId, m.milkType);
     });
 
-    // Filter rates specific to this milkman & apply custom name & override role
+    // Filter rates specific to this milkman & apply custom name & override role & attach milkType
     users.forEach((user) => {
       if (mappingMap.has(user.id)) {
         user.name = mappingMap.get(user.id) as string;
@@ -209,6 +242,7 @@ export class UsersService {
       if (mappingRoleMap.has(user.id)) {
         user.role = mappingRoleMap.get(user.id) as any;
       }
+      (user as any).milkType = mappingMilkTypeMap.get(user.id) || 'Buffalo';
       if (user.ratesHistory) {
         user.ratesHistory = user.ratesHistory.filter(
           (r) => r.milkmanId === milkmanId || r.milkmanId === null
@@ -224,7 +258,7 @@ export class UsersService {
 
   async findByMobile(mobileNumber: string) {
     const user = await this.userRepository.findOne({
-      where: { mobileNumber },
+      where: { mobileNumber, role: Not(Role.MILKMAN) },
     });
     if (!user) return null;
     const { passwordPin, ...result } = user;
@@ -253,17 +287,21 @@ export class UsersService {
       );
     }
 
+    let mappingMilkType = 'Buffalo';
     if (milkmanId) {
       const mapping = await this.milkmanCustomerRepository.findOne({
         where: { milkmanId, customerId: id },
       });
-      if (mapping && mapping.customName) {
-        user.name = mapping.customName;
+      if (mapping) {
+        if (mapping.customName) {
+          user.name = mapping.customName;
+        }
+        mappingMilkType = mapping.milkType || 'Buffalo';
       }
     }
 
     const { passwordPin, ...result } = user;
-    return result;
+    return { ...result, milkType: mappingMilkType };
   }
 
   async updateRate(milkmanId: string, userId: string, dto: UpdateRateDto) {
@@ -280,6 +318,7 @@ export class UsersService {
       ratePerLiter: dto.ratePerLiter,
       startDate: new Date(dto.startDate + 'T00:00:00Z'),
       rateType: dto.rateType ?? undefined,
+      milkType: dto.milkType || 'Buffalo',
     });
     return this.ratesHistoryRepository.save(rate);
   }
@@ -290,38 +329,47 @@ export class UsersService {
     });
     const customerIds = mappings.map((m) => m.customerId);
     if (customerIds.length === 0) {
-      return { message: `No active users found for role: ${dto.role}`, count: 0 };
+      return { message: `No active users found`, count: 0 };
     }
 
+    const targetRoles = dto.role === Role.FARMER 
+      ? [Role.FARMER, Role.BOTH] 
+      : [Role.CONSUMER, Role.BOTH];
+
     const users = await this.userRepository.find({
-      where: { id: In(customerIds), role: dto.role, isActive: true },
+      where: { id: In(customerIds), role: In(targetRoles), isActive: true },
     });
 
     if (users.length === 0) {
       return { message: `No active users found for role: ${dto.role}`, count: 0 };
     }
 
-    const types = this.getRateTypesForRole(dto.role);
-    const rateEntries = users.flatMap((user) =>
-      types.map((rateType) =>
-        this.ratesHistoryRepository.create({
-          userId: user.id,
-          milkmanId,
-          ratePerLiter: dto.ratePerLiter,
-          startDate: new Date(dto.startDate + 'T00:00:00Z'),
-          rateType,
-        }),
-      ),
+    const rateType = dto.role === Role.FARMER ? LedgerType.BUY : LedgerType.SELL_REGULAR;
+
+    const rateEntries = users.map((user) =>
+      this.ratesHistoryRepository.create({
+        userId: user.id,
+        milkmanId,
+        ratePerLiter: dto.ratePerLiter,
+        startDate: new Date(dto.startDate + 'T00:00:00Z'),
+        rateType,
+        milkType: dto.milkType || 'Buffalo',
+      }),
     );
 
     await this.ratesHistoryRepository.save(rateEntries);
     return {
-      message: `Updated rate to Rs. ${dto.ratePerLiter} for all ${users.length} active ${dto.role}s.`,
+      message: `Updated rate to Rs. ${dto.ratePerLiter} for all ${users.length} active ${dto.role === Role.FARMER ? 'Seller' : 'Buyer'}s.`,
       count: users.length,
     };
   }
 
   async syncUserGlobalRole(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user && user.role === Role.MILKMAN) {
+      return;
+    }
+
     const mappings = await this.milkmanCustomerRepository.find({
       where: { customerId: userId },
     });
@@ -364,6 +412,45 @@ export class UsersService {
       });
       if (mapping) {
         mapping.customName = dto.name;
+        await this.milkmanCustomerRepository.save(mapping);
+      }
+    }
+    if (dto.rates && dto.rates.length > 0) {
+      const milkTypeList = dto.rates.map((r) => r.milkType).join(',');
+      const mapping = await this.milkmanCustomerRepository.findOne({
+        where: { milkmanId, customerId: userId },
+      });
+      if (mapping) {
+        mapping.milkType = milkTypeList;
+        await this.milkmanCustomerRepository.save(mapping);
+      }
+
+      const todayDateStr = new Date().toISOString().split('T')[0];
+      for (const r of dto.rates) {
+        if (user.role === Role.FARMER || user.role === Role.BOTH) {
+          await this.updateRate(milkmanId, userId, {
+            ratePerLiter: r.ratePerLiter,
+            startDate: todayDateStr,
+            rateType: LedgerType.BUY,
+            milkType: r.milkType,
+          });
+        }
+        if (user.role === Role.CONSUMER || user.role === Role.BOTH) {
+          const sellRateVal = user.role === Role.BOTH ? (r.sellRatePerLiter ?? r.ratePerLiter) : (r.sellRatePerLiter || r.ratePerLiter);
+          await this.updateRate(milkmanId, userId, {
+            ratePerLiter: sellRateVal,
+            startDate: todayDateStr,
+            rateType: LedgerType.SELL_REGULAR,
+            milkType: r.milkType,
+          });
+        }
+      }
+    } else if (dto.milkType !== undefined) {
+      const mapping = await this.milkmanCustomerRepository.findOne({
+        where: { milkmanId, customerId: userId },
+      });
+      if (mapping) {
+        mapping.milkType = dto.milkType;
         await this.milkmanCustomerRepository.save(mapping);
       }
     }
@@ -463,5 +550,20 @@ export class UsersService {
     }
 
     return milkmenList;
+  }
+
+  async getMilkTypes(milkmanId: string): Promise<string[]> {
+    const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+    if (!user) throw new NotFoundException('Milkman not found');
+    const types = user.milkTypes || 'Buffalo,Cow';
+    return types.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+
+  async updateMilkTypes(milkmanId: string, milkTypes: string[]): Promise<string[]> {
+    const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+    if (!user) throw new NotFoundException('Milkman not found');
+    user.milkTypes = milkTypes.map((t) => t.trim()).filter(Boolean).join(',');
+    await this.userRepository.save(user);
+    return milkTypes;
   }
 }

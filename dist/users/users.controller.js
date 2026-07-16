@@ -59,6 +59,12 @@ let UsersController = class UsersController {
     async updateUser(req, userId, updateUserDto) {
         return this.usersService.updateUser(req.user.id, userId, updateUserDto);
     }
+    async getMilkTypes(req) {
+        return this.usersService.getMilkTypes(req.user.id);
+    }
+    async updateMilkTypes(req, milkTypes) {
+        return this.usersService.updateMilkTypes(req.user.id, milkTypes);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -140,6 +146,23 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, update_user_dto_1.UpdateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateUser", null);
+__decorate([
+    (0, common_1.Get)('milk-types/list'),
+    (0, roles_decorator_1.Roles)(user_entity_1.Role.MILKMAN),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getMilkTypes", null);
+__decorate([
+    (0, common_1.Post)('milk-types/list'),
+    (0, roles_decorator_1.Roles)(user_entity_1.Role.MILKMAN),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)('milkTypes')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Array]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateMilkTypes", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, common_1.Controller)('api/users'),

@@ -14,4 +14,8 @@ export class UpdateRateDto {
   @IsOptional()
   @IsEnum(LedgerType)
   rateType?: LedgerType;
+
+  @IsOptional()
+  @IsString()
+  milkType?: string;
 }

@@ -60,20 +60,47 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
     }
     async login(loginDto) {
-        const { mobileNumber, passwordPin } = loginDto;
-        const user = await this.userRepository.findOne({
+        const { mobileNumber, passwordPin, role } = loginDto;
+        const users = await this.userRepository.find({
             where: { mobileNumber },
         });
-        if (!user) {
+        if (users.length === 0) {
             throw new common_1.UnauthorizedException('Invalid mobile number or PIN');
         }
-        if (!user.isActive) {
+        const activeUsers = users.filter(u => u.isActive);
+        if (activeUsers.length === 0) {
             throw new common_1.UnauthorizedException('User account is inactive');
         }
-        const isPinValid = await bcrypt.compare(passwordPin, user.passwordPin);
-        if (!isPinValid) {
+        const matchingUsers = [];
+        for (const u of activeUsers) {
+            const isPinValid = await bcrypt.compare(passwordPin, u.passwordPin);
+            if (isPinValid) {
+                matchingUsers.push(u);
+            }
+        }
+        if (matchingUsers.length === 0) {
             throw new common_1.UnauthorizedException('Invalid mobile number or PIN');
         }
+        if (matchingUsers.length > 1) {
+            if (role) {
+                const chosenUser = matchingUsers.find(u => u.role === role);
+                if (chosenUser) {
+                    return this.generateLoginResponse(chosenUser);
+                }
+            }
+            return {
+                selectRole: true,
+                options: matchingUsers.map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    role: u.role,
+                    mobileNumber: u.mobileNumber,
+                })),
+            };
+        }
+        return this.generateLoginResponse(matchingUsers[0]);
+    }
+    generateLoginResponse(user) {
         const payload = { sub: user.id, mobileNumber: user.mobileNumber, role: user.role };
         return {
             accessToken: this.jwtService.sign(payload),

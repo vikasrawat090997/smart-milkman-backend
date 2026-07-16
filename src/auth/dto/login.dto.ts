@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsString, Length, IsOptional } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty()
@@ -9,4 +9,8 @@ export class LoginDto {
   @IsString()
   @Length(4, 4, { message: 'PIN must be exactly 4 digits' })
   passwordPin: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
 }

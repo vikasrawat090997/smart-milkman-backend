@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsEnum, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsEnum, IsNumber, IsString, IsOptional } from 'class-validator';
 import { Role } from '../../entities/user.entity';
 
 export class BulkUpdateRateDto {
@@ -13,4 +13,8 @@ export class BulkUpdateRateDto {
   @IsNotEmpty()
   @IsString()
   startDate: string; // Format: YYYY-MM-DD
+
+  @IsOptional()
+  @IsString()
+  milkType?: string;
 }

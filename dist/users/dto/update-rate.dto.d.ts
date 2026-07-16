@@ -3,4 +3,5 @@ export declare class UpdateRateDto {
     ratePerLiter: number;
     startDate: string;
     rateType?: LedgerType;
+    milkType?: string;
 }

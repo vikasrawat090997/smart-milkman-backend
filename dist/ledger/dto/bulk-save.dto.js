@@ -16,6 +16,7 @@ const daily_ledger_entity_1 = require("../../entities/daily-ledger.entity");
 class BulkEntryItem {
     userId;
     quantityLiters;
+    milkType;
 }
 exports.BulkEntryItem = BulkEntryItem;
 __decorate([
@@ -27,6 +28,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], BulkEntryItem.prototype, "quantityLiters", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], BulkEntryItem.prototype, "milkType", void 0);
 class BulkSaveDto {
     date;
     slot;

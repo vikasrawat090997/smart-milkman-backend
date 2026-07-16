@@ -19,7 +19,9 @@ class CreateUserDto {
     role;
     ratePerLiter;
     sellRatePerLiter;
+    milkType;
     address;
+    rates;
 }
 exports.CreateUserDto = CreateUserDto;
 __decorate([
@@ -44,7 +46,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "role", void 0);
 __decorate([
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateUserDto.prototype, "ratePerLiter", void 0);
@@ -57,5 +59,15 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateUserDto.prototype, "milkType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateUserDto.prototype, "address", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateUserDto.prototype, "rates", void 0);
 //# sourceMappingURL=create-user.dto.js.map

@@ -66,4 +66,16 @@ export class UsersController {
   async updateUser(@Request() req, @Param('id') userId: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateUser(req.user.id, userId, updateUserDto);
   }
+
+  @Get('milk-types/list')
+  @Roles(Role.MILKMAN)
+  async getMilkTypes(@Request() req) {
+    return this.usersService.getMilkTypes(req.user.id);
+  }
+
+  @Post('milk-types/list')
+  @Roles(Role.MILKMAN)
+  async updateMilkTypes(@Request() req, @Body('milkTypes') milkTypes: string[]) {
+    return this.usersService.updateMilkTypes(req.user.id, milkTypes);
+  }
 }

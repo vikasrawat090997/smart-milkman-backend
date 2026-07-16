@@ -20,6 +20,7 @@ let RatesHistory = class RatesHistory {
     ratePerLiter;
     startDate;
     rateType;
+    milkType;
     user;
     milkman;
 };
@@ -49,6 +50,10 @@ __decorate([
     __metadata("design:type", String)
 ], RatesHistory.prototype, "rateType", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' }),
+    __metadata("design:type", String)
+], RatesHistory.prototype, "milkType", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.ratesHistory, { onDelete: 'CASCADE' }),
     (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
     __metadata("design:type", user_entity_1.User)
@@ -60,7 +65,7 @@ __decorate([
 ], RatesHistory.prototype, "milkman", void 0);
 exports.RatesHistory = RatesHistory = __decorate([
     (0, typeorm_1.Entity)({ name: 'rates_history' }),
-    (0, typeorm_1.Index)('idx_user_start', ['userId', 'startDate']),
-    (0, typeorm_1.Index)('idx_user_milkman_start', ['userId', 'milkmanId', 'startDate'])
+    (0, typeorm_1.Index)('idx_user_start_milk', ['userId', 'startDate', 'milkType']),
+    (0, typeorm_1.Index)('idx_user_milkman_start_milk', ['userId', 'milkmanId', 'startDate', 'milkType'])
 ], RatesHistory);
 //# sourceMappingURL=rates-history.entity.js.map

@@ -19,6 +19,9 @@ export class MilkmanCustomer {
   @Column({ type: 'varchar', length: 20, name: 'relationship_role', default: 'both' })
   relationshipRole: string;
 
+  @Column({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' })
+  milkType: string;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'milkman_id' })
   milkman: User;

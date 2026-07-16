@@ -17,6 +17,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         role: import("../entities/user.entity").Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];

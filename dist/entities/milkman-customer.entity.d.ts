@@ -5,6 +5,7 @@ export declare class MilkmanCustomer {
     customerId: string;
     customName: string;
     relationshipRole: string;
+    milkType: string;
     milkman: User;
     customer: User;
 }

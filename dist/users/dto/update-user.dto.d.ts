@@ -5,4 +5,10 @@ export declare class UpdateUserDto {
     isActive?: boolean;
     address?: string;
     role?: string;
+    milkType?: string;
+    rates?: Array<{
+        milkType: string;
+        ratePerLiter: number;
+        sellRatePerLiter?: number;
+    }>;
 }

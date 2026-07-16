@@ -15,6 +15,7 @@ export declare class User {
     role: Role;
     isActive: boolean;
     address: string;
+    milkTypes: string;
     createdAt: Date;
     ratesHistory: RatesHistory[];
     dailyLedger: DailyLedger[];

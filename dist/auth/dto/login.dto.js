@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 class LoginDto {
     mobileNumber;
     passwordPin;
+    role;
 }
 exports.LoginDto = LoginDto;
 __decorate([
@@ -27,4 +28,9 @@ __decorate([
     (0, class_validator_1.Length)(4, 4, { message: 'PIN must be exactly 4 digits' }),
     __metadata("design:type", String)
 ], LoginDto.prototype, "passwordPin", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], LoginDto.prototype, "role", void 0);
 //# sourceMappingURL=login.dto.js.map

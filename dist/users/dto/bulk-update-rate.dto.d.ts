@@ -3,4 +3,5 @@ export declare class BulkUpdateRateDto {
     role: Role;
     ratePerLiter: number;
     startDate: string;
+    milkType?: string;
 }

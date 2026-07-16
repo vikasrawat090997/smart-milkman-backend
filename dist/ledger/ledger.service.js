@@ -48,25 +48,39 @@ let LedgerService = class LedgerService {
                 }
                 const ledgerType = dto.type ?? (user.role === 'farmer' ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR);
                 const targetRateType = ledgerType === daily_ledger_entity_1.LedgerType.BUY ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
+                const milkTypeVal = entry.milkType || 'Buffalo';
                 const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
                 let rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                     where: [
-                        { userId: entry.userId, milkmanId, rateType: targetRateType, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
-                        { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), rateType: targetRateType, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
+                        { userId: entry.userId, milkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                        { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), rateType: targetRateType, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
                     ],
                     order: { startDate: 'DESC' },
                 });
                 if (rateRecords.length === 0) {
                     rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                         where: [
-                            { userId: entry.userId, milkmanId, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
-                            { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
+                            { userId: entry.userId, milkmanId, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                            { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
                         ],
                         order: { startDate: 'DESC' },
                     });
                 }
                 const rateRecord = rateRecords.length > 0 ? rateRecords[0] : null;
-                const rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
+                let rateApplied = rateRecord ? Number(rateRecord.ratePerLiter) : 0.00;
+                if (rateApplied === 0) {
+                    const nonZeroRecords = await manager.find(rates_history_entity_1.RatesHistory, {
+                        where: [
+                            { userId: entry.userId, milkmanId, milkType: milkTypeVal },
+                            { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), milkType: milkTypeVal }
+                        ],
+                        order: { startDate: 'DESC' },
+                    });
+                    const nonZeroRecord = nonZeroRecords.find(r => Number(r.ratePerLiter) > 0);
+                    if (nonZeroRecord) {
+                        rateApplied = Number(nonZeroRecord.ratePerLiter);
+                    }
+                }
                 let ledgerItem = await manager.findOne(daily_ledger_entity_1.DailyLedger, {
                     where: {
                         userId: entry.userId,
@@ -74,6 +88,7 @@ let LedgerService = class LedgerService {
                         date: dto.date,
                         slot: dto.slot,
                         type: ledgerType,
+                        milkType: milkTypeVal,
                     },
                 });
                 if (ledgerItem) {
@@ -88,6 +103,7 @@ let LedgerService = class LedgerService {
                         milkmanId,
                         date: dto.date,
                         slot: dto.slot,
+                        milkType: milkTypeVal,
                         quantityLiters: qty,
                         rateApplied,
                         type: ledgerType,

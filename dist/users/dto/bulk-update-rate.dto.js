@@ -16,6 +16,7 @@ class BulkUpdateRateDto {
     role;
     ratePerLiter;
     startDate;
+    milkType;
 }
 exports.BulkUpdateRateDto = BulkUpdateRateDto;
 __decorate([
@@ -33,4 +34,9 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], BulkUpdateRateDto.prototype, "startDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], BulkUpdateRateDto.prototype, "milkType", void 0);
 //# sourceMappingURL=bulk-update-rate.dto.js.map

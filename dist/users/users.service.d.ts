@@ -21,6 +21,7 @@ export declare class UsersService {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -36,6 +37,7 @@ export declare class UsersService {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -43,12 +45,14 @@ export declare class UsersService {
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     } | null>;
     findOne(id: string, milkmanId?: string): Promise<{
+        milkType: string;
         id: string;
         name: string;
         mobileNumber: string;
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -68,6 +72,7 @@ export declare class UsersService {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -82,10 +87,13 @@ export declare class UsersService {
         role: Role;
         isActive: boolean;
         address: string;
+        milkTypes: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
         payments: import("../entities/payments-ledger.entity").PaymentsLedger[];
         recordedPayments: import("../entities/payments-ledger.entity").PaymentsLedger[];
     }[]>;
+    getMilkTypes(milkmanId: string): Promise<string[]>;
+    updateMilkTypes(milkmanId: string, milkTypes: string[]): Promise<string[]>;
 }

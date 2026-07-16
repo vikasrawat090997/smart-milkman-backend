@@ -9,6 +9,10 @@ export class BulkEntryItem {
 
   @IsOptional()
   quantityLiters?: number;
+
+  @IsOptional()
+  @IsString()
+  milkType?: string;
 }
 
 export class BulkSaveDto {

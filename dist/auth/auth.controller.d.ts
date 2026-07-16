@@ -13,6 +13,14 @@ export declare class AuthController {
             address: string;
             createdAt: Date;
         };
+    } | {
+        selectRole: boolean;
+        options: {
+            id: string;
+            name: string;
+            role: import("../entities/user.entity").Role;
+            mobileNumber: string;
+        }[];
     }>;
     getProfile(req: any): any;
 }

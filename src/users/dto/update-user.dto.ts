@@ -25,4 +25,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   role?: string;
+
+  @IsOptional()
+  @IsString()
+  milkType?: string;
+
+  @IsOptional()
+  rates?: Array<{
+    milkType: string;
+    ratePerLiter: number;
+    sellRatePerLiter?: number;
+  }>;
 }

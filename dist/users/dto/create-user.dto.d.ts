@@ -4,7 +4,13 @@ export declare class CreateUserDto {
     mobileNumber: string;
     passwordPin: string;
     role: Role;
-    ratePerLiter: number;
+    ratePerLiter?: number;
     sellRatePerLiter?: number;
+    milkType?: string;
     address?: string;
+    rates?: Array<{
+        milkType: string;
+        ratePerLiter: number;
+        sellRatePerLiter?: number;
+    }>;
 }

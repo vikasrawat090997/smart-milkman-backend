@@ -3,8 +3,8 @@ import { User } from './user.entity';
 import { LedgerType } from './daily-ledger.entity';
 
 @Entity({ name: 'rates_history' })
-@Index('idx_user_start', ['userId', 'startDate'])
-@Index('idx_user_milkman_start', ['userId', 'milkmanId', 'startDate'])
+@Index('idx_user_start_milk', ['userId', 'startDate', 'milkType'])
+@Index('idx_user_milkman_start_milk', ['userId', 'milkmanId', 'startDate', 'milkType'])
 export class RatesHistory {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -23,6 +23,9 @@ export class RatesHistory {
 
   @Column({ type: 'enum', enum: LedgerType, name: 'rate_type', nullable: true })
   rateType: LedgerType;
+
+  @Column({ type: 'varchar', length: 50, name: 'milk_type', default: 'Buffalo' })
+  milkType: string;
 
   @ManyToOne(() => User, (user) => user.ratesHistory, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
