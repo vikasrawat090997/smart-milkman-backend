@@ -110,6 +110,7 @@ let AuthService = class AuthService {
                 mobileNumber: user.mobileNumber,
                 role: user.role,
                 address: user.address,
+                parentMilkmanId: user.parentMilkmanId,
                 createdAt: user.createdAt,
             },
         };

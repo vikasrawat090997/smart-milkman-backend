@@ -9,6 +9,7 @@ export declare class ReportsService {
     private paymentsLedgerRepository;
     private milkmanCustomerRepository;
     constructor(userRepository: Repository<User>, dailyLedgerRepository: Repository<DailyLedger>, paymentsLedgerRepository: Repository<PaymentsLedger>, milkmanCustomerRepository: Repository<MilkmanCustomer>);
+    private getTargetMilkmanIds;
     getMonthlyReport(milkmanId: string, monthStr: string): Promise<{
         userId: string;
         name: string;
@@ -87,5 +88,55 @@ export declare class ReportsService {
                 totalSellAmt: any;
             }[];
         };
+    }>;
+    getRangeReport(milkmanId: string, startDateStr: string, endDateStr: string): Promise<{
+        overview: {
+            totalBuyQty: number;
+            totalBuyVal: number;
+            totalSellQty: number;
+            totalSellVal: number;
+            morningBuyQty: number;
+            eveningBuyQty: number;
+            morningSellQty: number;
+            eveningSellQty: number;
+            totalCashCollected: number;
+            totalUpiCollected: number;
+            totalCashPaid: number;
+            totalUpiPaid: number;
+        };
+        milkTypeBreakdown: {
+            [milkType: string]: {
+                buyQty: number;
+                buyVal: number;
+                sellQty: number;
+                sellVal: number;
+            };
+        };
+        userwiseReport: {
+            userId: string;
+            name: string;
+            mobileNumber: string;
+            role: string;
+            buyQty: number;
+            buyVal: number;
+            sellQty: number;
+            sellVal: number;
+            amountPaid: number;
+        }[];
+        subMilkmanReport: {
+            subMilkmanId: string;
+            name: string;
+            mobileNumber: string;
+            buyQty: number;
+            buyVal: number;
+            sellQty: number;
+            sellVal: number;
+            amountPaid: number;
+        }[];
+        dailyMilkReport: {
+            date: string;
+            buyQty: number;
+            sellQty: number;
+        }[];
     }>;
 }

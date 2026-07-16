@@ -19,6 +19,7 @@ const typeorm_2 = require("typeorm");
 const daily_ledger_entity_1 = require("../entities/daily-ledger.entity");
 const rates_history_entity_1 = require("../entities/rates-history.entity");
 const user_entity_1 = require("../entities/user.entity");
+const milkman_customer_entity_1 = require("../entities/milkman-customer.entity");
 let LedgerService = class LedgerService {
     dailyLedgerRepository;
     ratesHistoryRepository;
@@ -46,13 +47,17 @@ let LedgerService = class LedgerService {
                 if (!user.isActive) {
                     continue;
                 }
+                const mapping = await manager.findOne(milkman_customer_entity_1.MilkmanCustomer, {
+                    where: { customerId: entry.userId },
+                });
+                const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
                 const ledgerType = dto.type ?? (user.role === 'farmer' ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR);
                 const targetRateType = ledgerType === daily_ledger_entity_1.LedgerType.BUY ? daily_ledger_entity_1.LedgerType.BUY : daily_ledger_entity_1.LedgerType.SELL_REGULAR;
                 const milkTypeVal = entry.milkType || 'Buffalo';
                 const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
                 let rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                     where: [
-                        { userId: entry.userId, milkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                        { userId: entry.userId, milkmanId: targetMilkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
                         { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), rateType: targetRateType, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
                     ],
                     order: { startDate: 'DESC' },
@@ -60,7 +65,7 @@ let LedgerService = class LedgerService {
                 if (rateRecords.length === 0) {
                     rateRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                         where: [
-                            { userId: entry.userId, milkmanId, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
+                            { userId: entry.userId, milkmanId: targetMilkmanId, milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) },
                             { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), milkType: milkTypeVal, startDate: (0, typeorm_2.LessThanOrEqual)(ledgerDateObj) }
                         ],
                         order: { startDate: 'DESC' },
@@ -71,7 +76,7 @@ let LedgerService = class LedgerService {
                 if (rateApplied === 0) {
                     const nonZeroRecords = await manager.find(rates_history_entity_1.RatesHistory, {
                         where: [
-                            { userId: entry.userId, milkmanId, milkType: milkTypeVal },
+                            { userId: entry.userId, milkmanId: targetMilkmanId, milkType: milkTypeVal },
                             { userId: entry.userId, milkmanId: (0, typeorm_2.IsNull)(), milkType: milkTypeVal }
                         ],
                         order: { startDate: 'DESC' },
@@ -84,7 +89,7 @@ let LedgerService = class LedgerService {
                 let ledgerItem = await manager.findOne(daily_ledger_entity_1.DailyLedger, {
                     where: {
                         userId: entry.userId,
-                        milkmanId,
+                        milkmanId: targetMilkmanId,
                         date: dto.date,
                         slot: dto.slot,
                         type: ledgerType,
@@ -100,7 +105,7 @@ let LedgerService = class LedgerService {
                 else {
                     ledgerItem = manager.create(daily_ledger_entity_1.DailyLedger, {
                         userId: entry.userId,
-                        milkmanId,
+                        milkmanId: targetMilkmanId,
                         date: dto.date,
                         slot: dto.slot,
                         milkType: milkTypeVal,
@@ -120,9 +125,17 @@ let LedgerService = class LedgerService {
         });
     }
     async getSlotEntries(milkmanId, dateStr, slot, type) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        let milkmanIds = [milkmanId];
+        if (user && user.role === 'milkman' && !user.parentMilkmanId) {
+            const subMilkmen = await this.userRepository.find({
+                where: { parentMilkmanId: milkmanId, role: 'milkman', isActive: true },
+            });
+            milkmanIds = [milkmanId, ...subMilkmen.map((u) => u.id)];
+        }
         return this.dailyLedgerRepository.find({
             where: {
-                milkmanId,
+                milkmanId: (0, typeorm_2.In)(milkmanIds),
                 date: dateStr,
                 slot,
                 ...(type ? { type } : {}),

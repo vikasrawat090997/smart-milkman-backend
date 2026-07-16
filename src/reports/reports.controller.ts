@@ -29,4 +29,13 @@ export class ReportsController {
   async getMonthlyReport(@Request() req, @Query('month') month: string) {
     return this.reportsService.getMonthlyReport(req.user.id, month);
   }
+
+  @Get('range-report')
+  async getRangeReport(
+    @Request() req,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getRangeReport(req.user.id, startDate, endDate);
+  }
 }

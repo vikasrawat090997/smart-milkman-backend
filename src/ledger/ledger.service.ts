@@ -1,9 +1,10 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThanOrEqual, IsNull } from 'typeorm';
+import { Repository, DataSource, LessThanOrEqual, IsNull, In } from 'typeorm';
 import { DailyLedger, Slot, LedgerType } from '../entities/daily-ledger.entity';
 import { RatesHistory } from '../entities/rates-history.entity';
 import { User } from '../entities/user.entity';
+import { MilkmanCustomer } from '../entities/milkman-customer.entity';
 import { BulkSaveDto } from './dto/bulk-save.dto';
 
 @Injectable()
@@ -41,6 +42,12 @@ export class LedgerService {
           continue; // Skip inactive users
         }
 
+        // Find which milkman this customer is mapped to
+        const mapping = await manager.findOne(MilkmanCustomer, {
+          where: { customerId: entry.userId },
+        });
+        const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+
         // Determine ledger type: use dto.type if provided, otherwise fall back to role-based
         const ledgerType: LedgerType = dto.type ?? (user.role === 'farmer' ? LedgerType.BUY : LedgerType.SELL_REGULAR);
 
@@ -52,7 +59,7 @@ export class LedgerService {
         const ledgerDateObj = new Date(dto.date + 'T00:00:00Z');
         let rateRecords = await manager.find(RatesHistory, {
           where: [
-            { userId: entry.userId, milkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
+            { userId: entry.userId, milkmanId: targetMilkmanId, rateType: targetRateType, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
             { userId: entry.userId, milkmanId: IsNull(), rateType: targetRateType, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) }
           ],
           order: { startDate: 'DESC' },
@@ -62,7 +69,7 @@ export class LedgerService {
         if (rateRecords.length === 0) {
           rateRecords = await manager.find(RatesHistory, {
             where: [
-              { userId: entry.userId, milkmanId, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
+              { userId: entry.userId, milkmanId: targetMilkmanId, milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) },
               { userId: entry.userId, milkmanId: IsNull(), milkType: milkTypeVal, startDate: LessThanOrEqual(ledgerDateObj) }
             ],
             order: { startDate: 'DESC' },
@@ -75,7 +82,7 @@ export class LedgerService {
         if (rateApplied === 0) {
           const nonZeroRecords = await manager.find(RatesHistory, {
             where: [
-              { userId: entry.userId, milkmanId, milkType: milkTypeVal },
+              { userId: entry.userId, milkmanId: targetMilkmanId, milkType: milkTypeVal },
               { userId: entry.userId, milkmanId: IsNull(), milkType: milkTypeVal }
             ],
             order: { startDate: 'DESC' },
@@ -90,7 +97,7 @@ export class LedgerService {
         let ledgerItem = await manager.findOne(DailyLedger, {
           where: {
             userId: entry.userId,
-            milkmanId,
+            milkmanId: targetMilkmanId,
             date: dto.date as any,
             slot: dto.slot,
             type: ledgerType,
@@ -106,7 +113,7 @@ export class LedgerService {
         } else {
           ledgerItem = manager.create(DailyLedger, {
             userId: entry.userId,
-            milkmanId,
+            milkmanId: targetMilkmanId,
             date: dto.date as any,
             slot: dto.slot,
             milkType: milkTypeVal,
@@ -130,9 +137,18 @@ export class LedgerService {
 
   // Helper method to fetch slot entries for a specific date, slot, and optional type
   async getSlotEntries(milkmanId: string, dateStr: string, slot: Slot, type?: LedgerType) {
+    const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+    let milkmanIds = [milkmanId];
+    if (user && user.role === 'milkman' && !user.parentMilkmanId) {
+      const subMilkmen = await this.userRepository.find({
+        where: { parentMilkmanId: milkmanId, role: 'milkman' as any, isActive: true },
+      });
+      milkmanIds = [milkmanId, ...subMilkmen.map((u) => u.id)];
+    }
+
     return this.dailyLedgerRepository.find({
       where: {
-        milkmanId,
+        milkmanId: In(milkmanIds),
         date: dateStr as any,
         slot,
         ...(type ? { type } : {}),

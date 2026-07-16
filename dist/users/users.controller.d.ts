@@ -7,14 +7,15 @@ import { Role } from '../entities/user.entity';
 export declare class UsersController {
     private usersService;
     constructor(usersService: UsersService);
-    createUser(req: any, createUserDto: CreateUserDto): Promise<import("../entities/user.entity").User | {
-        name: string;
+    createUser(req: any, createUserDto: CreateUserDto): Promise<{
         id: string;
+        name: string;
         mobileNumber: string;
         role: Role;
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -30,6 +31,7 @@ export declare class UsersController {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -38,6 +40,7 @@ export declare class UsersController {
     }[]>;
     getActive(req: any, role?: Role): Promise<import("../entities/user.entity").User[]>;
     getAll(req: any, role?: Role): Promise<import("../entities/user.entity").User[]>;
+    getSubMilkmen(req: any): Promise<import("../entities/user.entity").User[]>;
     bulkUpdateRate(req: any, bulkUpdateRateDto: BulkUpdateRateDto): Promise<{
         message: string;
         count: number;
@@ -50,6 +53,7 @@ export declare class UsersController {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -65,6 +69,7 @@ export declare class UsersController {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -80,6 +85,7 @@ export declare class UsersController {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: import("../entities/rates-history.entity").RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];

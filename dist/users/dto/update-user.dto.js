@@ -20,6 +20,7 @@ class UpdateUserDto {
     role;
     milkType;
     rates;
+    assignedMilkmanId;
 }
 exports.UpdateUserDto = UpdateUserDto;
 __decorate([
@@ -62,4 +63,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], UpdateUserDto.prototype, "rates", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateUserDto.prototype, "assignedMilkmanId", void 0);
 //# sourceMappingURL=update-user.dto.js.map

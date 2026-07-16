@@ -36,4 +36,8 @@ export class UpdateUserDto {
     ratePerLiter: number;
     sellRatePerLiter?: number;
   }>;
+
+  @IsOptional()
+  @IsString()
+  assignedMilkmanId?: string;
 }

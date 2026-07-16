@@ -30,6 +30,7 @@ let User = class User {
     isActive;
     address;
     milkTypes;
+    parentMilkmanId;
     createdAt;
     ratesHistory;
     dailyLedger;
@@ -70,6 +71,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text', name: 'milk_types', nullable: true }),
     __metadata("design:type", String)
 ], User.prototype, "milkTypes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 36, name: 'parent_milkman_id', nullable: true }),
+    __metadata("design:type", String)
+], User.prototype, "parentMilkmanId", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' }),
     __metadata("design:type", Date)

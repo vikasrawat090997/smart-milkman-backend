@@ -40,6 +40,9 @@ let UsersController = class UsersController {
     async getAll(req, role) {
         return this.usersService.findAll(req.user.id, role);
     }
+    async getSubMilkmen(req) {
+        return this.usersService.findSubMilkmen(req.user.id);
+    }
     async bulkUpdateRate(req, bulkUpdateRateDto) {
         return this.usersService.bulkUpdateRate(req.user.id, bulkUpdateRateDto);
     }
@@ -101,6 +104,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getAll", null);
+__decorate([
+    (0, common_1.Get)('sub-milkmen/list'),
+    (0, roles_decorator_1.Roles)(user_entity_1.Role.MILKMAN),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getSubMilkmen", null);
 __decorate([
     (0, common_1.Post)('bulk-rate'),
     (0, roles_decorator_1.Roles)(user_entity_1.Role.MILKMAN),

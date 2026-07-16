@@ -12,16 +12,19 @@ export declare class UsersService {
     private milkmanCustomerRepository;
     private dataSource;
     constructor(userRepository: Repository<User>, ratesHistoryRepository: Repository<RatesHistory>, milkmanCustomerRepository: Repository<MilkmanCustomer>, dataSource: DataSource);
+    findSubMilkmen(parentMilkmanId: string): Promise<User[]>;
+    getTargetMilkmanIds(milkmanId: string): Promise<string[]>;
     private getRateTypesForRole;
     private createRates;
-    createUser(milkmanId: string, dto: CreateUserDto): Promise<User | {
-        name: string;
+    createUser(milkmanId: string, dto: CreateUserDto): Promise<{
         id: string;
+        name: string;
         mobileNumber: string;
         role: Role;
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -38,6 +41,7 @@ export declare class UsersService {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -53,6 +57,7 @@ export declare class UsersService {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -73,6 +78,7 @@ export declare class UsersService {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];
@@ -88,6 +94,7 @@ export declare class UsersService {
         isActive: boolean;
         address: string;
         milkTypes: string;
+        parentMilkmanId: string;
         createdAt: Date;
         ratesHistory: RatesHistory[];
         dailyLedger: import("../entities/daily-ledger.entity").DailyLedger[];

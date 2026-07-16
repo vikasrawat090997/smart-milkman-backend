@@ -43,4 +43,8 @@ export class CreateUserDto {
     ratePerLiter: number;
     sellRatePerLiter?: number;
   }>;
+
+  @IsOptional()
+  @IsString()
+  assignedMilkmanId?: string;
 }

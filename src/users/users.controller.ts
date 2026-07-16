@@ -36,6 +36,12 @@ export class UsersController {
     return this.usersService.findAll(req.user.id, role);
   }
 
+  @Get('sub-milkmen/list')
+  @Roles(Role.MILKMAN)
+  async getSubMilkmen(@Request() req) {
+    return this.usersService.findSubMilkmen(req.user.id);
+  }
+
   @Post('bulk-rate')
   @Roles(Role.MILKMAN)
   async bulkUpdateRate(@Request() req, @Body() bulkUpdateRateDto: BulkUpdateRateDto) {

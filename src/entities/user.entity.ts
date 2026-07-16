@@ -38,6 +38,9 @@ export class User {
   @Column({ type: 'text', name: 'milk_types', nullable: true })
   milkTypes: string;
 
+  @Column({ type: 'varchar', length: 36, name: 'parent_milkman_id', nullable: true })
+  parentMilkmanId: string;
+
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
   createdAt: Date;
 

@@ -11,6 +11,7 @@ export declare class BillService {
     private paymentsLedgerRepository;
     private milkmanCustomerRepository;
     constructor(billLockRepository: Repository<BillLock>, userRepository: Repository<User>, dailyLedgerRepository: Repository<DailyLedger>, paymentsLedgerRepository: Repository<PaymentsLedger>, milkmanCustomerRepository: Repository<MilkmanCustomer>);
+    private getTargetMilkmanIds;
     lockMonth(milkmanId: string, monthYear: string, isLocked: boolean): Promise<BillLock>;
     getLockStatus(milkmanId: string, monthYear: string): Promise<boolean>;
     getLocks(milkmanId: string): Promise<BillLock[]>;

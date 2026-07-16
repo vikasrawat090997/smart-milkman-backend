@@ -14,6 +14,7 @@ export declare class AuthService {
             mobileNumber: string;
             role: import("../entities/user.entity").Role;
             address: string;
+            parentMilkmanId: string;
             createdAt: Date;
         };
     } | {

@@ -13,4 +13,5 @@ export declare class CreateUserDto {
         ratePerLiter: number;
         sellRatePerLiter?: number;
     }>;
+    assignedMilkmanId?: string;
 }

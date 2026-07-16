@@ -38,6 +38,16 @@ let BillService = class BillService {
         this.paymentsLedgerRepository = paymentsLedgerRepository;
         this.milkmanCustomerRepository = milkmanCustomerRepository;
     }
+    async getTargetMilkmanIds(milkmanId) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        if (user && user.role === 'milkman' && !user.parentMilkmanId) {
+            const subMilkmen = await this.userRepository.find({
+                where: { parentMilkmanId: milkmanId, role: 'milkman', isActive: true },
+            });
+            return [milkmanId, ...subMilkmen.map((u) => u.id)];
+        }
+        return [milkmanId];
+    }
     async lockMonth(milkmanId, monthYear, isLocked) {
         let lock = await this.billLockRepository.findOne({
             where: { monthYear, milkmanId },
@@ -55,8 +65,10 @@ let BillService = class BillService {
         return this.billLockRepository.save(lock);
     }
     async getLockStatus(milkmanId, monthYear) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        const targetMilkmanId = (user && user.parentMilkmanId) ? user.parentMilkmanId : milkmanId;
         const lock = await this.billLockRepository.findOne({
-            where: { monthYear, milkmanId },
+            where: { monthYear, milkmanId: targetMilkmanId },
         });
         return lock ? lock.isLocked : false;
     }
@@ -66,7 +78,12 @@ let BillService = class BillService {
         });
     }
     async generateBillPdf(res, userId, milkmanId, month, requestUserRole, targetRole) {
-        const isLocked = await this.getLockStatus(milkmanId, month);
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
+        const mapping = await this.milkmanCustomerRepository.findOne({
+            where: { customerId: userId, milkmanId: (0, typeorm_2.In)(milkmanIds) },
+        });
+        const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+        const isLocked = await this.getLockStatus(targetMilkmanId, month);
         if (!isLocked && requestUserRole !== 'milkman') {
             throw new common_1.ForbiddenException('Bill not generated yet by Milkman');
         }
@@ -74,9 +91,6 @@ let BillService = class BillService {
         if (!user) {
             throw new common_1.NotFoundException('User not found');
         }
-        const mapping = await this.milkmanCustomerRepository.findOne({
-            where: { milkmanId, customerId: userId },
-        });
         const activeLayoutRole = targetRole || (mapping ? mapping.relationshipRole : (user.role === 'both' ? 'both' : user.role));
         const [monthStr, yearStr] = month.split('-');
         const m = parseInt(monthStr, 10) - 1;
@@ -84,11 +98,11 @@ let BillService = class BillService {
         const startDate = new Date(Date.UTC(y, m, 1));
         const endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
         const ledgerEntriesRaw = await this.dailyLedgerRepository.find({
-            where: { userId, milkmanId, date: (0, typeorm_2.Between)(startDate, endDate) },
+            where: { userId, milkmanId: (0, typeorm_2.In)(milkmanIds), date: (0, typeorm_2.Between)(startDate, endDate) },
             order: { date: 'ASC', slot: 'ASC' },
         });
         const paymentEntriesRaw = await this.paymentsLedgerRepository.find({
-            where: { userId, recordedBy: milkmanId, date: (0, typeorm_2.Between)(startDate, endDate) },
+            where: { userId, recordedBy: (0, typeorm_2.In)(milkmanIds), date: (0, typeorm_2.Between)(startDate, endDate) },
             order: { date: 'ASC' },
         });
         const slateDark = '#0f172a';

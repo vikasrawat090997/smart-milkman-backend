@@ -31,14 +31,25 @@ let ReportsService = class ReportsService {
         this.paymentsLedgerRepository = paymentsLedgerRepository;
         this.milkmanCustomerRepository = milkmanCustomerRepository;
     }
+    async getTargetMilkmanIds(milkmanId) {
+        const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+        if (user && user.role === 'milkman' && !user.parentMilkmanId) {
+            const subMilkmen = await this.userRepository.find({
+                where: { parentMilkmanId: milkmanId, role: 'milkman', isActive: true },
+            });
+            return [milkmanId, ...subMilkmen.map((u) => u.id)];
+        }
+        return [milkmanId];
+    }
     async getMonthlyReport(milkmanId, monthStr) {
         const [yearStr, monthStr_] = monthStr.split('-');
         const y = parseInt(yearStr, 10);
         const m = parseInt(monthStr_, 10) - 1;
         const startDate = new Date(Date.UTC(y, m, 1));
         const endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
         const mappings = await this.milkmanCustomerRepository.find({
-            where: { milkmanId },
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) },
         });
         const customerIds = mappings.map((m) => m.customerId);
         if (customerIds.length === 0)
@@ -66,10 +77,10 @@ let ReportsService = class ReportsService {
             return true;
         });
         const allLedger = await this.dailyLedgerRepository.find({
-            where: { milkmanId },
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) },
         });
         const allPayments = await this.paymentsLedgerRepository.find({
-            where: { recordedBy: milkmanId },
+            where: { recordedBy: (0, typeorm_2.In)(milkmanIds) },
         });
         return users.map((user) => {
             const monthLedgers = allLedger.filter((item) => {
@@ -111,8 +122,9 @@ let ReportsService = class ReportsService {
         if (!user) {
             throw new common_1.NotFoundException('User not found');
         }
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
         const mapping = await this.milkmanCustomerRepository.findOne({
-            where: { milkmanId, customerId: userId },
+            where: { customerId: userId, milkmanId: (0, typeorm_2.In)(milkmanIds) },
         });
         if (mapping) {
             if (mapping.customName) {
@@ -121,11 +133,11 @@ let ReportsService = class ReportsService {
             user.role = mapping.relationshipRole;
         }
         const ledgerEntries = await this.dailyLedgerRepository.find({
-            where: { userId, milkmanId },
+            where: { userId, milkmanId: (0, typeorm_2.In)(milkmanIds) },
             order: { date: 'DESC', slot: 'DESC' },
         });
         const paymentEntries = await this.paymentsLedgerRepository.find({
-            where: { userId, recordedBy: milkmanId },
+            where: { userId, recordedBy: (0, typeorm_2.In)(milkmanIds) },
             relations: { editHistory: true },
             order: { date: 'DESC' },
         });
@@ -152,6 +164,7 @@ let ReportsService = class ReportsService {
                 description: `${item.slot.toUpperCase()} - Milk Delivery`,
                 mode: null,
                 ledgerType: item.type,
+                milkType: item.milkType,
             });
         }
         for (const item of paymentEntries) {
@@ -202,8 +215,9 @@ let ReportsService = class ReportsService {
         };
     }
     async getDashboardSummary(milkmanId, dateStr) {
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
         const mappings = await this.milkmanCustomerRepository.find({
-            where: { milkmanId },
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) },
         });
         const mappingMap = new Map();
         mappings.forEach((m) => {
@@ -262,7 +276,7 @@ let ReportsService = class ReportsService {
         const farmers = users.filter(u => u.role === 'farmer' || u.role === 'both');
         const consumers = users.filter(u => u.role === 'consumer' || u.role === 'both');
         const ledgerEntries = await this.dailyLedgerRepository.find({
-            where: { milkmanId }
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) }
         });
         let totalProc = 0;
         let totalRev = 0;
@@ -460,6 +474,185 @@ let ReportsService = class ReportsService {
                 monthProfitEvening,
                 todayTransactions: transactionsList,
             }
+        };
+    }
+    async getRangeReport(milkmanId, startDateStr, endDateStr) {
+        const [startY, startM, startD] = startDateStr.split('-').map(Number);
+        const [endY, endM, endD] = endDateStr.split('-').map(Number);
+        const startDate = new Date(Date.UTC(startY, startM - 1, startD, 0, 0, 0, 0));
+        const endDate = new Date(Date.UTC(endY, endM - 1, endD, 23, 59, 59, 999));
+        const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
+        const mappings = await this.milkmanCustomerRepository.find({
+            where: { milkmanId: (0, typeorm_2.In)(milkmanIds) },
+        });
+        const customerIds = mappings.map((m) => m.customerId);
+        const subMilkmen = await this.userRepository.find({
+            where: { parentMilkmanId: milkmanId, role: 'milkman' }
+        });
+        const subMilkmanIds = subMilkmen.map(sm => sm.id);
+        const allUsers = await this.userRepository.find({
+            where: [
+                { id: (0, typeorm_2.In)([...customerIds, ...subMilkmanIds]) },
+                { parentMilkmanId: milkmanId, role: 'milkman' }
+            ]
+        });
+        const mappingMap = new Map();
+        const roleMap = new Map();
+        mappings.forEach((m) => {
+            if (m.customName) {
+                mappingMap.set(m.customerId, m.customName);
+            }
+            roleMap.set(m.customerId, m.relationshipRole);
+        });
+        const ledgerEntries = await this.dailyLedgerRepository.find({
+            where: {
+                milkmanId: (0, typeorm_2.In)(milkmanIds),
+                date: (0, typeorm_2.Between)(startDate, endDate)
+            }
+        });
+        const paymentEntries = await this.paymentsLedgerRepository.find({
+            where: {
+                recordedBy: (0, typeorm_2.In)(milkmanIds),
+                date: (0, typeorm_2.Between)(startDate, endDate)
+            }
+        });
+        let totalBuyQty = 0;
+        let totalBuyVal = 0;
+        let totalSellQty = 0;
+        let totalSellVal = 0;
+        let morningBuyQty = 0;
+        let eveningBuyQty = 0;
+        let morningSellQty = 0;
+        let eveningSellQty = 0;
+        const milkTypeBreakdown = {};
+        ledgerEntries.forEach((entry) => {
+            const qty = Number(entry.quantityLiters || 0);
+            const val = Number(entry.totalPrice || 0);
+            const milkType = entry.milkType || 'Buffalo';
+            const slot = entry.slot || 'morning';
+            if (!milkTypeBreakdown[milkType]) {
+                milkTypeBreakdown[milkType] = { buyQty: 0, buyVal: 0, sellQty: 0, sellVal: 0 };
+            }
+            if (entry.type === 'buy') {
+                totalBuyQty += qty;
+                totalBuyVal += val;
+                milkTypeBreakdown[milkType].buyQty += qty;
+                milkTypeBreakdown[milkType].buyVal += val;
+                if (slot === 'morning')
+                    morningBuyQty += qty;
+                else
+                    eveningBuyQty += qty;
+            }
+            else {
+                totalSellQty += qty;
+                totalSellVal += val;
+                milkTypeBreakdown[milkType].sellQty += qty;
+                milkTypeBreakdown[milkType].sellVal += val;
+                if (slot === 'morning')
+                    morningSellQty += qty;
+                else
+                    eveningSellQty += qty;
+            }
+        });
+        const userwiseData = allUsers.filter(u => u.role !== 'milkman').map((u) => {
+            const uLedgers = ledgerEntries.filter(e => e.userId === u.id);
+            const uPayments = paymentEntries.filter(e => e.userId === u.id);
+            const buyQty = uLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+            const buyVal = uLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+            const sellQty = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+            const sellVal = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+            const amountPaid = uPayments.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+            return {
+                userId: u.id,
+                name: mappingMap.get(u.id) || u.name,
+                mobileNumber: u.mobileNumber,
+                role: roleMap.get(u.id) || u.role,
+                buyQty,
+                buyVal,
+                sellQty,
+                sellVal,
+                amountPaid,
+            };
+        });
+        const subMilkmanwiseData = subMilkmen.map((sm) => {
+            const smLedgers = ledgerEntries.filter(e => e.milkmanId === sm.id);
+            const smPayments = paymentEntries.filter(e => e.recordedBy === sm.id);
+            const buyQty = smLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+            const buyVal = smLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+            const sellQty = smLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+            const sellVal = smLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+            const amountPaid = smPayments.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+            return {
+                subMilkmanId: sm.id,
+                name: sm.name,
+                mobileNumber: sm.mobileNumber,
+                buyQty,
+                buyVal,
+                sellQty,
+                sellVal,
+                amountPaid,
+            };
+        });
+        let totalCashCollected = 0;
+        let totalUpiCollected = 0;
+        let totalCashPaid = 0;
+        let totalUpiPaid = 0;
+        paymentEntries.forEach((pay) => {
+            const amt = Number(pay.amountPaid || 0);
+            const mode = pay.paymentMode || 'cash';
+            const targetUser = allUsers.find(u => u.id === pay.userId);
+            const isFarmer = targetUser ? (roleMap.get(pay.userId) === 'farmer' || targetUser.role === 'farmer') : false;
+            if (isFarmer) {
+                if (mode === 'cash')
+                    totalCashPaid += amt;
+                else
+                    totalUpiPaid += amt;
+            }
+            else {
+                if (mode === 'cash')
+                    totalCashCollected += amt;
+                else
+                    totalUpiCollected += amt;
+            }
+        });
+        const dailyMilkMap = {};
+        ledgerEntries.forEach((entry) => {
+            const dateStr = typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString().split('T')[0];
+            const qty = Number(entry.quantityLiters || 0);
+            if (!dailyMilkMap[dateStr]) {
+                dailyMilkMap[dateStr] = { buyQty: 0, sellQty: 0 };
+            }
+            if (entry.type === 'buy') {
+                dailyMilkMap[dateStr].buyQty += qty;
+            }
+            else {
+                dailyMilkMap[dateStr].sellQty += qty;
+            }
+        });
+        const dailyMilkReport = Object.entries(dailyMilkMap).map(([date, data]) => ({
+            date,
+            buyQty: data.buyQty,
+            sellQty: data.sellQty
+        })).sort((a, b) => a.date.localeCompare(b.date));
+        return {
+            overview: {
+                totalBuyQty,
+                totalBuyVal,
+                totalSellQty,
+                totalSellVal,
+                morningBuyQty,
+                eveningBuyQty,
+                morningSellQty,
+                eveningSellQty,
+                totalCashCollected,
+                totalUpiCollected,
+                totalCashPaid,
+                totalUpiPaid,
+            },
+            milkTypeBreakdown,
+            userwiseReport: userwiseData,
+            subMilkmanReport: subMilkmanwiseData,
+            dailyMilkReport,
         };
     }
 };

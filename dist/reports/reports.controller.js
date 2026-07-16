@@ -34,6 +34,9 @@ let ReportsController = class ReportsController {
     async getMonthlyReport(req, month) {
         return this.reportsService.getMonthlyReport(req.user.id, month);
     }
+    async getRangeReport(req, startDate, endDate) {
+        return this.reportsService.getRangeReport(req.user.id, startDate, endDate);
+    }
 };
 exports.ReportsController = ReportsController;
 __decorate([
@@ -61,6 +64,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getMonthlyReport", null);
+__decorate([
+    (0, common_1.Get)('range-report'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], ReportsController.prototype, "getRangeReport", null);
 exports.ReportsController = ReportsController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('api/reports'),

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { BillLock } from '../entities/bill-lock.entity';
 import { User } from '../entities/user.entity';
 import { DailyLedger } from '../entities/daily-ledger.entity';
@@ -23,6 +23,17 @@ export class BillService {
     private milkmanCustomerRepository: Repository<MilkmanCustomer>,
   ) {}
 
+  private async getTargetMilkmanIds(milkmanId: string): Promise<string[]> {
+    const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+    if (user && user.role === 'milkman' && !user.parentMilkmanId) {
+      const subMilkmen = await this.userRepository.find({
+        where: { parentMilkmanId: milkmanId, role: 'milkman' as any, isActive: true },
+      });
+      return [milkmanId, ...subMilkmen.map((u) => u.id)];
+    }
+    return [milkmanId];
+  }
+
   async lockMonth(milkmanId: string, monthYear: string, isLocked: boolean) {
     let lock = await this.billLockRepository.findOne({
       where: { monthYear, milkmanId },
@@ -40,8 +51,10 @@ export class BillService {
   }
 
   async getLockStatus(milkmanId: string, monthYear: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({ where: { id: milkmanId } });
+    const targetMilkmanId = (user && user.parentMilkmanId) ? user.parentMilkmanId : milkmanId;
     const lock = await this.billLockRepository.findOne({
-      where: { monthYear, milkmanId },
+      where: { monthYear, milkmanId: targetMilkmanId },
     });
     return lock ? lock.isLocked : false;
   }
@@ -53,8 +66,14 @@ export class BillService {
   }
 
   async generateBillPdf(res: any, userId: string, milkmanId: string, month: string, requestUserRole: string, targetRole?: string) {
+    const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
+    
     // 1. Verify lock status
-    const isLocked = await this.getLockStatus(milkmanId, month);
+    const mapping = await this.milkmanCustomerRepository.findOne({
+      where: { customerId: userId, milkmanId: In(milkmanIds) },
+    });
+    const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+    const isLocked = await this.getLockStatus(targetMilkmanId, month);
     
     // Non-milkman roles can ONLY download locked bills
     if (!isLocked && requestUserRole !== 'milkman') {
@@ -67,9 +86,6 @@ export class BillService {
       throw new NotFoundException('User not found');
     }
 
-    const mapping = await this.milkmanCustomerRepository.findOne({
-      where: { milkmanId, customerId: userId },
-    });
     const activeLayoutRole = targetRole || (mapping ? mapping.relationshipRole : (user.role === 'both' ? 'both' : user.role));
 
     // 3. Parse month string MM-YYYY to date ranges
@@ -81,13 +97,13 @@ export class BillService {
 
     // Fetch ledger logs inside the month for this milkman
     const ledgerEntriesRaw = await this.dailyLedgerRepository.find({
-      where: { userId, milkmanId, date: Between(startDate, endDate) },
+      where: { userId, milkmanId: In(milkmanIds), date: Between(startDate, endDate) },
       order: { date: 'ASC', slot: 'ASC' },
     });
 
     // Fetch payments inside the month recorded by this milkman
     const paymentEntriesRaw = await this.paymentsLedgerRepository.find({
-      where: { userId, recordedBy: milkmanId, date: Between(startDate, endDate) },
+      where: { userId, recordedBy: In(milkmanIds), date: Between(startDate, endDate) },
       order: { date: 'ASC' },
     });
 

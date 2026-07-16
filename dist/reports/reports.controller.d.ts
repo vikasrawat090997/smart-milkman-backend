@@ -81,4 +81,54 @@ export declare class ReportsController {
         totalPayments: number;
         cumulativeBalance: number;
     }[]>;
+    getRangeReport(req: any, startDate: string, endDate: string): Promise<{
+        overview: {
+            totalBuyQty: number;
+            totalBuyVal: number;
+            totalSellQty: number;
+            totalSellVal: number;
+            morningBuyQty: number;
+            eveningBuyQty: number;
+            morningSellQty: number;
+            eveningSellQty: number;
+            totalCashCollected: number;
+            totalUpiCollected: number;
+            totalCashPaid: number;
+            totalUpiPaid: number;
+        };
+        milkTypeBreakdown: {
+            [milkType: string]: {
+                buyQty: number;
+                buyVal: number;
+                sellQty: number;
+                sellVal: number;
+            };
+        };
+        userwiseReport: {
+            userId: string;
+            name: string;
+            mobileNumber: string;
+            role: string;
+            buyQty: number;
+            buyVal: number;
+            sellQty: number;
+            sellVal: number;
+            amountPaid: number;
+        }[];
+        subMilkmanReport: {
+            subMilkmanId: string;
+            name: string;
+            mobileNumber: string;
+            buyQty: number;
+            buyVal: number;
+            sellQty: number;
+            sellVal: number;
+            amountPaid: number;
+        }[];
+        dailyMilkReport: {
+            date: string;
+            buyQty: number;
+            sellQty: number;
+        }[];
+    }>;
 }
