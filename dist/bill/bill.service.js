@@ -121,28 +121,28 @@ let BillService = class BillService {
         });
         return locks
             .filter((l) => {
-            if (callerId && callerRole !== 'milkman') {
-                if (l.userId && l.userId !== callerId) {
-                    return false;
-                }
-                if (callerMapping && callerMapping.deactivatedAt) {
-                    const lockStart = new Date(l.startDate);
-                    const deactivated = new Date(callerMapping.deactivatedAt);
-                    if (lockStart.getTime() > deactivated.getTime()) {
+                if (callerId && callerRole !== 'milkman') {
+                    if (l.userId && l.userId !== callerId) {
                         return false;
                     }
+                    if (callerMapping && callerMapping.deactivatedAt) {
+                        const lockStart = new Date(l.startDate);
+                        const deactivated = new Date(callerMapping.deactivatedAt);
+                        if (lockStart.getTime() > deactivated.getTime()) {
+                            return false;
+                        }
+                    }
                 }
-            }
-            return true;
-        })
+                return true;
+            })
             .map(l => ({
-            id: l.id,
-            startDate: typeof l.startDate === 'string' ? l.startDate : new Date(l.startDate).toISOString().split('T')[0],
-            endDate: typeof l.endDate === 'string' ? l.endDate : new Date(l.endDate).toISOString().split('T')[0],
-            isLocked: l.isLocked,
-            userId: l.userId,
-            lockedAt: l.lockedAt
-        }));
+                id: l.id,
+                startDate: typeof l.startDate === 'string' ? l.startDate : new Date(l.startDate).toISOString().split('T')[0],
+                endDate: typeof l.endDate === 'string' ? l.endDate : new Date(l.endDate).toISOString().split('T')[0],
+                isLocked: l.isLocked,
+                userId: l.userId,
+                lockedAt: l.lockedAt
+            }));
     }
     async generateBillPdf(res, userId, milkmanId, dateRange, requestUserRole, targetRole) {
         const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
@@ -469,8 +469,8 @@ let BillService = class BillService {
         yPosition += 15;
         doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
         yPosition += 8;
-        doc.fontSize(9).fillColor(slateDark).text('🌅 MORNING SHIFT TOTALS', 55, yPosition, { underline: true });
-        doc.text('🌃 EVENING SHIFT TOTALS', 300, yPosition, { underline: true });
+        doc.fontSize(9).fillColor(slateDark).text('🌅 Morning TOTALS', 55, yPosition, { underline: true });
+        doc.text('🌃 Evening TOTALS', 300, yPosition, { underline: true });
         yPosition += 15;
         let mornY = yPosition;
         let eveY = yPosition;
@@ -548,9 +548,9 @@ exports.BillService = BillService = __decorate([
     __param(3, (0, typeorm_1.InjectRepository)(payments_ledger_entity_1.PaymentsLedger)),
     __param(4, (0, typeorm_1.InjectRepository)(milkman_customer_entity_1.MilkmanCustomer)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository])
+    typeorm_2.Repository,
+    typeorm_2.Repository,
+    typeorm_2.Repository,
+    typeorm_2.Repository])
 ], BillService);
 //# sourceMappingURL=bill.service.js.map

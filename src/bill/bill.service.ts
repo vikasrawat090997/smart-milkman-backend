@@ -213,7 +213,7 @@ export class BillService {
       startDate = new Date(dateRange.startDate + 'T00:00:00Z');
       endDate = new Date(dateRange.endDate + 'T23:59:59Z');
       periodLabel = `${dateRange.startDate} to ${dateRange.endDate}`;
-      isLocked = true; 
+      isLocked = true;
     } else if (dateRange.month) {
       const [monthStr, yearStr] = dateRange.month.split('-');
       const m = parseInt(monthStr, 10) - 1;
@@ -255,7 +255,7 @@ export class BillService {
 
     doc.fillColor(slateDark).fontSize(20).text('SMART DHUDHIYA', 50, 50, { align: 'left' });
     doc.fontSize(8).fillColor(slateLight).text('Zero-Cost Dairy Ledger & Delivery System', 50, 72);
-    
+
     doc.fontSize(13).fillColor(slateDark).text('ACCOUNT STATEMENT', 380, 50, { align: 'right' });
     doc.fontSize(9).fillColor(slateLight).text(`Period: ${periodLabel}`, 380, 66, { align: 'right' });
     doc.text(`Status: ${isLocked ? 'OFFICIAL INVOICE' : 'UNLOCKED PREVIEW'}`, 380, 78, { align: 'right' });
@@ -356,7 +356,7 @@ export class BillService {
       doc.text(`Total Milk Volume: ${totalQty.toFixed(1)} Liters`, 320, 123);
       doc.text(`Total Milk Value: Rs. ${totalVal.toFixed(2)}`, 320, 134);
       doc.text(`Total Payments: Rs. ${totalPaid.toFixed(2)}`, 320, 145);
-      
+
       let balanceLabel = 'Net Due (Udhari)';
       let highlightColor = roseRed;
       if (activeLayoutRole === 'farmer') {
@@ -431,13 +431,13 @@ export class BillService {
     yPosition += 15;
     doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
     yPosition += 5;
-    
+
     doc.fontSize(8).fillColor(slateDark);
     doc.text('Date', 55, yPosition);
     doc.text('Buy (Milk Type: Qty / Value)', 145, yPosition);
     doc.text('Sell (Milk Type: Qty / Value)', 310, yPosition);
     doc.text('Payments', 475, yPosition);
-    
+
     yPosition += 10;
     doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(borderGray).stroke();
     yPosition += 6;
@@ -544,8 +544,8 @@ export class BillService {
     doc.moveTo(50, yPosition).lineTo(545, yPosition).strokeColor(slateDark).lineWidth(1).stroke();
     yPosition += 8;
 
-    doc.fontSize(9).fillColor(slateDark).text('🌅 MORNING SHIFT TOTALS', 55, yPosition, { underline: true });
-    doc.text('🌃 EVENING SHIFT TOTALS', 300, yPosition, { underline: true });
+    doc.fontSize(9).fillColor(slateDark).text('🌅 Morning TOTALS', 55, yPosition, { underline: true });
+    doc.text('🌃 Evening TOTALS', 300, yPosition, { underline: true });
     yPosition += 15;
 
     let mornY = yPosition;

@@ -636,6 +636,8 @@ export class ReportsService {
       });
 
       const amountPaid = uPayments.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+      const amountPaidFarmer = uPayments.filter(p => (p.targetRole || u.role) === 'farmer').reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+      const amountPaidConsumer = uPayments.filter(p => (p.targetRole || u.role) === 'consumer').reduce((s, p) => s + Number(p.amountPaid || 0), 0);
 
       return {
         userId: u.id,
@@ -649,6 +651,8 @@ export class ReportsService {
         buyBreakdown,
         sellBreakdown,
         amountPaid,
+        amountPaidFarmer,
+        amountPaidConsumer,
       };
     });
 
@@ -685,7 +689,11 @@ export class ReportsService {
       const amt = Number(pay.amountPaid || 0);
       const mode = pay.paymentMode || 'cash';
       const targetUser = allUsers.find(u => u.id === pay.userId);
-      const isFarmer = targetUser ? (roleMap.get(pay.userId) === 'farmer' || targetUser.role === 'farmer') : false;
+      const isFarmer = pay.targetRole 
+        ? (pay.targetRole === 'farmer')
+        : targetUser 
+          ? (roleMap.get(pay.userId) === 'farmer' || targetUser.role === 'farmer' || targetUser.role === 'both')
+          : false;
 
       if (isFarmer) {
         if (mode === 'cash') totalCashPaid += amt;
@@ -719,6 +727,42 @@ export class ReportsService {
       sellQty: data.sellQty
     })).sort((a, b) => a.date.localeCompare(b.date));
 
+    const moneyReport = {
+      toSeller: {
+        allTime: 0,
+        morning: {} as Record<string, number>,
+        evening: {} as Record<string, number>
+      },
+      fromBuyer: {
+        allTime: 0,
+        morning: {} as Record<string, number>,
+        evening: {} as Record<string, number>
+      }
+    };
+
+    ledgerEntries.forEach((entry) => {
+      const val = Number(entry.totalPrice || 0);
+      const slot = entry.slot || 'morning';
+      const rawMilkType = entry.milkType || 'Buffalo';
+      const milkType = rawMilkType.charAt(0).toUpperCase() + rawMilkType.slice(1).toLowerCase();
+
+      if (entry.type === 'buy') {
+        moneyReport.toSeller.allTime += val;
+        if (slot === 'morning') {
+          moneyReport.toSeller.morning[milkType] = (moneyReport.toSeller.morning[milkType] || 0) + val;
+        } else {
+          moneyReport.toSeller.evening[milkType] = (moneyReport.toSeller.evening[milkType] || 0) + val;
+        }
+      } else {
+        moneyReport.fromBuyer.allTime += val;
+        if (slot === 'morning') {
+          moneyReport.fromBuyer.morning[milkType] = (moneyReport.fromBuyer.morning[milkType] || 0) + val;
+        } else {
+          moneyReport.fromBuyer.evening[milkType] = (moneyReport.fromBuyer.evening[milkType] || 0) + val;
+        }
+      }
+    });
+
     return {
       overview: {
         totalBuyQty,
@@ -738,6 +782,7 @@ export class ReportsService {
       userwiseReport: userwiseData,
       subMilkmanReport: subMilkmanwiseData,
       dailyMilkReport,
+      moneyReport,
     };
   }
 }

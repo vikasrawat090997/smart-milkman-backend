@@ -126,6 +126,8 @@ export declare class ReportsController {
                 };
             };
             amountPaid: number;
+            amountPaidFarmer: number;
+            amountPaidConsumer: number;
         }[];
         subMilkmanReport: {
             subMilkmanId: string;
@@ -142,5 +144,17 @@ export declare class ReportsController {
             buyQty: number;
             sellQty: number;
         }[];
+        moneyReport: {
+            toSeller: {
+                allTime: number;
+                morning: Record<string, number>;
+                evening: Record<string, number>;
+            };
+            fromBuyer: {
+                allTime: number;
+                morning: Record<string, number>;
+                evening: Record<string, number>;
+            };
+        };
     }>;
 }
