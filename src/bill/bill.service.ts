@@ -620,4 +620,75 @@ export class BillService {
       { align: 'center', width: 495 }
     );
   }
+
+  async getBillData(
+    userId: string,
+    milkmanId: string,
+    dateRange: { startDate?: string; endDate?: string; month?: string },
+    requestUserRole: string,
+    targetRole?: string
+  ) {
+    const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
+    const mapping = await this.milkmanCustomerRepository.findOne({
+      where: { customerId: userId, milkmanId: In(milkmanIds) },
+    });
+    const targetMilkmanId = mapping ? mapping.milkmanId : milkmanId;
+
+    let startDate: Date;
+    let endDate: Date;
+    let periodLabel: string;
+    let isLocked = false;
+
+    if (dateRange.startDate && dateRange.endDate) {
+      startDate = new Date(dateRange.startDate + 'T00:00:00Z');
+      endDate = new Date(dateRange.endDate + 'T23:59:59Z');
+      periodLabel = `${dateRange.startDate} to ${dateRange.endDate}`;
+      isLocked = true;
+    } else if (dateRange.month) {
+      const [monthStr, yearStr] = dateRange.month.split('-');
+      const m = parseInt(monthStr, 10) - 1;
+      const y = parseInt(yearStr, 10);
+      startDate = new Date(Date.UTC(y, m, 1));
+      endDate = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+      periodLabel = dateRange.month;
+      isLocked = await this.isDateLocked(targetMilkmanId, `${yearStr}-${monthStr}-01`);
+    } else {
+      throw new NotFoundException('Either startDate/endDate or month must be provided');
+    }
+
+    if (!isLocked && requestUserRole !== 'milkman') {
+      throw new ForbiddenException('Bill not generated yet by Milkman');
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const activeLayoutRole = targetRole || (mapping ? mapping.relationshipRole : (user.role === 'both' ? 'both' : user.role));
+
+    const ledgerEntriesRaw = await this.dailyLedgerRepository.find({
+      where: { userId, milkmanId: In(milkmanIds), date: Between(startDate, endDate) },
+      order: { date: 'ASC', slot: 'ASC' },
+    });
+
+    const paymentEntriesRaw = await this.paymentsLedgerRepository.find({
+      where: { userId, recordedBy: In(milkmanIds), date: Between(startDate, endDate) },
+      order: { date: 'ASC' },
+    });
+
+    return {
+      periodLabel,
+      isLocked,
+      user: {
+        name: user.name,
+        mobileNumber: user.mobileNumber,
+        address: user.address,
+        role: user.role
+      },
+      activeLayoutRole,
+      ledgerEntries: ledgerEntriesRaw,
+      paymentEntries: paymentEntriesRaw,
+    };
+  }
 }

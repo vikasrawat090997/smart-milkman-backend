@@ -39,4 +39,21 @@ export declare class BillService {
         endDate?: string;
         month?: string;
     }, targetRole?: string, requestUserRole?: string): Promise<void>;
+    getBillData(userId: string, milkmanId: string, dateRange: {
+        startDate?: string;
+        endDate?: string;
+        month?: string;
+    }, requestUserRole: string, targetRole?: string): Promise<{
+        periodLabel: string;
+        isLocked: boolean;
+        user: {
+            name: string;
+            mobileNumber: string;
+            address: string;
+            role: import("../entities/user.entity").Role;
+        };
+        activeLayoutRole: string;
+        ledgerEntries: DailyLedger[];
+        paymentEntries: PaymentsLedger[];
+    }>;
 }

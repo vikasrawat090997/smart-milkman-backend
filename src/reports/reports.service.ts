@@ -17,7 +17,7 @@ export class ReportsService {
     private paymentsLedgerRepository: Repository<PaymentsLedger>,
     @InjectRepository(MilkmanCustomer)
     private milkmanCustomerRepository: Repository<MilkmanCustomer>,
-  ) {}
+  ) { }
 
   private async getTargetMilkmanIds(milkmanId: string): Promise<string[]> {
     const user = await this.userRepository.findOne({ where: { id: milkmanId } });
@@ -171,13 +171,13 @@ export class ReportsService {
     for (const item of ledgerEntries) {
       const historyLogs = item.editHistory
         ? item.editHistory.map((h) => ({
-            id: h.id,
-            oldQuantity: Number(h.oldQuantity),
-            newQuantity: Number(h.newQuantity),
-            oldRate: Number(h.oldRate),
-            newRate: Number(h.newRate),
-            editedAt: h.editedAt,
-          })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
+          id: h.id,
+          oldQuantity: Number(h.oldQuantity),
+          newQuantity: Number(h.newQuantity),
+          oldRate: Number(h.oldRate),
+          newRate: Number(h.newRate),
+          editedAt: h.editedAt,
+        })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
         : [];
 
       passbook.push({
@@ -199,15 +199,15 @@ export class ReportsService {
     for (const item of paymentEntries) {
       const historyLogs = item.editHistory
         ? item.editHistory.map((h) => ({
-            id: h.id,
-            oldAmount: Number(h.oldAmount),
-            newAmount: Number(h.newAmount),
-            oldDate: h.oldDate,
-            newDate: h.newDate,
-            oldPaymentMode: h.oldPaymentMode,
-            newPaymentMode: h.newPaymentMode,
-            editedAt: h.editedAt,
-          })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
+          id: h.id,
+          oldAmount: Number(h.oldAmount),
+          newAmount: Number(h.newAmount),
+          oldDate: h.oldDate,
+          newDate: h.newDate,
+          oldPaymentMode: h.oldPaymentMode,
+          newPaymentMode: h.newPaymentMode,
+          editedAt: h.editedAt,
+        })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
         : [];
 
       passbook.push({
@@ -388,41 +388,57 @@ export class ReportsService {
             id: user.id,
             name: mappedName,
             role: user.role,
+            buyBreakdown: {},
+            sellBreakdown: {},
             morningBuyQty: 0,
-            morningBuyRate: 0,
             morningBuyAmt: 0,
             morningSellQty: 0,
-            morningSellRate: 0,
             morningSellAmt: 0,
             eveningBuyQty: 0,
-            eveningBuyRate: 0,
             eveningBuyAmt: 0,
             eveningSellQty: 0,
-            eveningSellRate: 0,
             eveningSellAmt: 0,
           };
         }
 
         const tx = todayUserEntries[user.id];
-        if (item.slot === 'morning') {
-          if (item.type === LedgerType.BUY) {
-            tx.morningBuyQty = qty;
-            tx.morningBuyRate = rate;
-            tx.morningBuyAmt = amt;
-          } else {
-            tx.morningSellQty = qty;
-            tx.morningSellRate = rate;
-            tx.morningSellAmt = amt;
+        const mType = item.milkType || 'Buffalo';
+
+        if (item.type === LedgerType.BUY) {
+          if (!tx.buyBreakdown[mType]) {
+            tx.buyBreakdown[mType] = { qty: 0, val: 0, morningQty: 0, morningVal: 0, eveningQty: 0, eveningVal: 0 };
           }
-        } else if (item.slot === 'evening') {
-          if (item.type === LedgerType.BUY) {
-            tx.eveningBuyQty = qty;
-            tx.eveningBuyRate = rate;
-            tx.eveningBuyAmt = amt;
-          } else {
-            tx.eveningSellQty = qty;
-            tx.eveningSellRate = rate;
-            tx.eveningSellAmt = amt;
+          tx.buyBreakdown[mType].qty += qty;
+          tx.buyBreakdown[mType].val += amt;
+          
+          if (item.slot === 'morning') {
+            tx.buyBreakdown[mType].morningQty += qty;
+            tx.buyBreakdown[mType].morningVal += amt;
+            tx.morningBuyQty += qty;
+            tx.morningBuyAmt += amt;
+          } else if (item.slot === 'evening') {
+            tx.buyBreakdown[mType].eveningQty += qty;
+            tx.buyBreakdown[mType].eveningVal += amt;
+            tx.eveningBuyQty += qty;
+            tx.eveningBuyAmt += amt;
+          }
+        } else {
+          if (!tx.sellBreakdown[mType]) {
+            tx.sellBreakdown[mType] = { qty: 0, val: 0, morningQty: 0, morningVal: 0, eveningQty: 0, eveningVal: 0 };
+          }
+          tx.sellBreakdown[mType].qty += qty;
+          tx.sellBreakdown[mType].val += amt;
+
+          if (item.slot === 'morning') {
+            tx.sellBreakdown[mType].morningQty += qty;
+            tx.sellBreakdown[mType].morningVal += amt;
+            tx.morningSellQty += qty;
+            tx.morningSellAmt += amt;
+          } else if (item.slot === 'evening') {
+            tx.sellBreakdown[mType].eveningQty += qty;
+            tx.sellBreakdown[mType].eveningVal += amt;
+            tx.eveningSellQty += qty;
+            tx.eveningSellAmt += amt;
           }
         }
 
@@ -470,17 +486,15 @@ export class ReportsService {
       id: tx.id,
       name: tx.name,
       role: tx.role,
+      buyBreakdown: tx.buyBreakdown,
+      sellBreakdown: tx.sellBreakdown,
       morningBuyQty: tx.morningBuyQty,
-      morningBuyRate: tx.morningBuyRate,
       morningBuyAmt: tx.morningBuyAmt,
       morningSellQty: tx.morningSellQty,
-      morningSellRate: tx.morningSellRate,
       morningSellAmt: tx.morningSellAmt,
       eveningBuyQty: tx.eveningBuyQty,
-      eveningBuyRate: tx.eveningBuyRate,
       eveningBuyAmt: tx.eveningBuyAmt,
       eveningSellQty: tx.eveningSellQty,
-      eveningSellRate: tx.eveningSellRate,
       eveningSellAmt: tx.eveningSellAmt,
       totalBuyAmt: tx.morningBuyAmt + tx.eveningBuyAmt,
       totalSellAmt: tx.morningSellAmt + tx.eveningSellAmt,
@@ -533,7 +547,7 @@ export class ReportsService {
     const endDate = new Date(Date.UTC(endY, endM - 1, endD, 23, 59, 59, 999));
 
     const milkmanIds = await this.getTargetMilkmanIds(milkmanId);
-    
+
     // Fetch all mapped customers
     const mappings = await this.milkmanCustomerRepository.find({
       where: { milkmanId: In(milkmanIds) },
@@ -702,9 +716,9 @@ export class ReportsService {
       const amt = Number(pay.amountPaid || 0);
       const mode = pay.paymentMode || 'cash';
       const targetUser = allUsers.find(u => u.id === pay.userId);
-      const isFarmer = pay.targetRole 
+      const isFarmer = pay.targetRole
         ? (pay.targetRole === 'farmer')
-        : targetUser 
+        : targetUser
           ? (roleMap.get(pay.userId) === 'farmer' || targetUser.role === 'farmer' || targetUser.role === 'both')
           : false;
 
