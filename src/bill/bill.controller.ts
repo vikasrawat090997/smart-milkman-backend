@@ -85,4 +85,30 @@ export class BillController {
     // 3. Generate and stream
     await this.billService.generateBillPdf(res, userId, milkmanId, { month, startDate, endDate }, req.user.role, targetRole);
   }
+
+  @Get('data/:userId')
+  async getBillData(
+    @Request() req,
+    @Param('userId') userId: string,
+    @Query('month') month?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('milkmanId') queryMilkmanId?: string,
+    @Query('role') targetRole?: string,
+  ) {
+    if (req.user.role !== Role.MILKMAN && req.user.id !== userId) {
+      throw new ForbiddenException('Unauthorized to view this billing statement');
+    }
+
+    if (!month && (!startDate || !endDate)) {
+      throw new ForbiddenException('Either query parameter "month" or both "startDate" and "endDate" are required');
+    }
+
+    const milkmanId = req.user.role === Role.MILKMAN ? req.user.id : queryMilkmanId;
+    if (!milkmanId) {
+      throw new ForbiddenException('Query parameter "milkmanId" is required');
+    }
+
+    return await this.billService.getBillData(userId, milkmanId, { month, startDate, endDate }, req.user.role, targetRole);
+  }
 }

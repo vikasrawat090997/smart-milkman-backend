@@ -95,6 +95,19 @@ let BillController = class BillController {
         res.setHeader('Content-Disposition', `attachment; filename=bill_${userId}_${label}.pdf`);
         await this.billService.generateBillPdf(res, userId, milkmanId, { month, startDate, endDate }, req.user.role, targetRole);
     }
+    async getBillData(req, userId, month, startDate, endDate, queryMilkmanId, targetRole) {
+        if (req.user.role !== user_entity_1.Role.MILKMAN && req.user.id !== userId) {
+            throw new common_1.ForbiddenException('Unauthorized to view this billing statement');
+        }
+        if (!month && (!startDate || !endDate)) {
+            throw new common_1.ForbiddenException('Either query parameter "month" or both "startDate" and "endDate" are required');
+        }
+        const milkmanId = req.user.role === user_entity_1.Role.MILKMAN ? req.user.id : queryMilkmanId;
+        if (!milkmanId) {
+            throw new common_1.ForbiddenException('Query parameter "milkmanId" is required');
+        }
+        return await this.billService.getBillData(userId, milkmanId, { month, startDate, endDate }, req.user.role, targetRole);
+    }
 };
 exports.BillController = BillController;
 __decorate([
@@ -140,6 +153,19 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, Object, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], BillController.prototype, "downloadBill", null);
+__decorate([
+    (0, common_1.Get)('data/:userId'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Query)('month')),
+    __param(3, (0, common_1.Query)('startDate')),
+    __param(4, (0, common_1.Query)('endDate')),
+    __param(5, (0, common_1.Query)('milkmanId')),
+    __param(6, (0, common_1.Query)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], BillController.prototype, "getBillData", null);
 exports.BillController = BillController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, common_1.Controller)('api/bill'),
