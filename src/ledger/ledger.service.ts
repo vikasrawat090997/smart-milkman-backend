@@ -6,6 +6,7 @@ import { RatesHistory } from '../entities/rates-history.entity';
 import { User } from '../entities/user.entity';
 import { MilkmanCustomer } from '../entities/milkman-customer.entity';
 import { BillLock } from '../entities/bill-lock.entity';
+import { DailyLedgerEditHistory } from '../entities/daily-ledger-edit-history.entity';
 import { BulkSaveDto } from './dto/bulk-save.dto';
 
 @Injectable()
@@ -123,6 +124,19 @@ export class LedgerService {
         });
 
         if (ledgerItem) {
+          // If the quantity or rate is changing, record the edit history
+          if (Number(ledgerItem.quantityLiters) !== qty || Number(ledgerItem.rateApplied) !== rateApplied) {
+            const editHistory = manager.create(DailyLedgerEditHistory, {
+              ledgerId: ledgerItem.id,
+              oldQuantity: ledgerItem.quantityLiters,
+              newQuantity: qty,
+              oldRate: ledgerItem.rateApplied,
+              newRate: rateApplied,
+              editedBy: milkmanId,
+            });
+            await manager.save(DailyLedgerEditHistory, editHistory);
+          }
+
           ledgerItem.quantityLiters = qty;
           ledgerItem.rateApplied = rateApplied;
           ledgerItem.totalPrice = qty * rateApplied;

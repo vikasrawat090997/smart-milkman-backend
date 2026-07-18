@@ -1,4 +1,5 @@
 import { User } from './user.entity';
+import { DailyLedgerEditHistory } from './daily-ledger-edit-history.entity';
 export declare enum Slot {
     MORNING = "morning",
     EVENING = "evening"
@@ -21,4 +22,5 @@ export declare class DailyLedger {
     totalPrice: number;
     user: User;
     milkman: User;
+    editHistory: DailyLedgerEditHistory[];
 }

@@ -16,6 +16,7 @@ import { PaymentsLedger } from './entities/payments-ledger.entity';
 import { BillLock } from './entities/bill-lock.entity';
 import { PaymentEditHistory } from './entities/payment-edit-history.entity';
 import { MilkmanCustomer } from './entities/milkman-customer.entity';
+import { DailyLedgerEditHistory } from './entities/daily-ledger-edit-history.entity';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { MilkmanCustomer } from './entities/milkman-customer.entity';
       username: process.env.DB_USERNAME || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_DATABASE || 'smart_dhudhiya',
-      entities: [User, RatesHistory, DailyLedger, PaymentsLedger, BillLock, PaymentEditHistory, MilkmanCustomer],
+      entities: [User, RatesHistory, DailyLedger, PaymentsLedger, BillLock, PaymentEditHistory, MilkmanCustomer, DailyLedgerEditHistory],
       synchronize: false,
     }),
     AuthModule,

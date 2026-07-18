@@ -142,6 +142,7 @@ export class ReportsService {
     // Fetch all daily ledger entries for this milkman
     const ledgerEntries = await this.dailyLedgerRepository.find({
       where: { userId, milkmanId: In(milkmanIds) },
+      relations: { editHistory: true },
       order: { date: 'DESC', slot: 'DESC' },
     });
 
@@ -168,6 +169,17 @@ export class ReportsService {
     const passbook: any[] = [];
 
     for (const item of ledgerEntries) {
+      const historyLogs = item.editHistory
+        ? item.editHistory.map((h) => ({
+            id: h.id,
+            oldQuantity: Number(h.oldQuantity),
+            newQuantity: Number(h.newQuantity),
+            oldRate: Number(h.oldRate),
+            newRate: Number(h.newRate),
+            editedAt: h.editedAt,
+          })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
+        : [];
+
       passbook.push({
         id: item.id,
         date: item.date,
@@ -180,6 +192,7 @@ export class ReportsService {
         mode: null,
         ledgerType: item.type,
         milkType: item.milkType,
+        editHistory: historyLogs,
       });
     }
 

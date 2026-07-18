@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique, OneToMany } from 'typeorm';
 import { User } from './user.entity';
+import { DailyLedgerEditHistory } from './daily-ledger-edit-history.entity';
 
 export enum Slot {
   MORNING = 'morning',
@@ -58,4 +59,7 @@ export class DailyLedger {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'milkman_id' })
   milkman: User;
+
+  @OneToMany(() => DailyLedgerEditHistory, (history) => history.ledger)
+  editHistory: DailyLedgerEditHistory[];
 }

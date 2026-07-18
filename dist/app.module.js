@@ -25,6 +25,7 @@ const payments_ledger_entity_1 = require("./entities/payments-ledger.entity");
 const bill_lock_entity_1 = require("./entities/bill-lock.entity");
 const payment_edit_history_entity_1 = require("./entities/payment-edit-history.entity");
 const milkman_customer_entity_1 = require("./entities/milkman-customer.entity");
+const daily_ledger_edit_history_entity_1 = require("./entities/daily-ledger-edit-history.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -44,7 +45,7 @@ exports.AppModule = AppModule = __decorate([
                 username: process.env.DB_USERNAME || 'root',
                 password: process.env.DB_PASSWORD || '',
                 database: process.env.DB_DATABASE || 'smart_dhudhiya',
-                entities: [user_entity_1.User, rates_history_entity_1.RatesHistory, daily_ledger_entity_1.DailyLedger, payments_ledger_entity_1.PaymentsLedger, bill_lock_entity_1.BillLock, payment_edit_history_entity_1.PaymentEditHistory, milkman_customer_entity_1.MilkmanCustomer],
+                entities: [user_entity_1.User, rates_history_entity_1.RatesHistory, daily_ledger_entity_1.DailyLedger, payments_ledger_entity_1.PaymentsLedger, bill_lock_entity_1.BillLock, payment_edit_history_entity_1.PaymentEditHistory, milkman_customer_entity_1.MilkmanCustomer, daily_ledger_edit_history_entity_1.DailyLedgerEditHistory],
                 synchronize: false,
             }),
             auth_module_1.AuthModule,

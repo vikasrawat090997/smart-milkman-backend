@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DailyLedger = exports.LedgerType = exports.Slot = void 0;
 const typeorm_1 = require("typeorm");
 const user_entity_1 = require("./user.entity");
+const daily_ledger_edit_history_entity_1 = require("./daily-ledger-edit-history.entity");
 var Slot;
 (function (Slot) {
     Slot["MORNING"] = "morning";
@@ -36,6 +37,7 @@ let DailyLedger = class DailyLedger {
     totalPrice;
     user;
     milkman;
+    editHistory;
 };
 exports.DailyLedger = DailyLedger;
 __decorate([
@@ -94,6 +96,10 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'milkman_id' }),
     __metadata("design:type", user_entity_1.User)
 ], DailyLedger.prototype, "milkman", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => daily_ledger_edit_history_entity_1.DailyLedgerEditHistory, (history) => history.ledger),
+    __metadata("design:type", Array)
+], DailyLedger.prototype, "editHistory", void 0);
 exports.DailyLedger = DailyLedger = __decorate([
     (0, typeorm_1.Entity)({ name: 'daily_ledger' }),
     (0, typeorm_1.Unique)('unique_user_milkman_date_slot_type_milk', ['userId', 'milkmanId', 'date', 'slot', 'type', 'milkType'])

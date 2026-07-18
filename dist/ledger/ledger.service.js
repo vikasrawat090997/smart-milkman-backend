@@ -21,6 +21,7 @@ const rates_history_entity_1 = require("../entities/rates-history.entity");
 const user_entity_1 = require("../entities/user.entity");
 const milkman_customer_entity_1 = require("../entities/milkman-customer.entity");
 const bill_lock_entity_1 = require("../entities/bill-lock.entity");
+const daily_ledger_edit_history_entity_1 = require("../entities/daily-ledger-edit-history.entity");
 let LedgerService = class LedgerService {
     dailyLedgerRepository;
     ratesHistoryRepository;
@@ -113,6 +114,17 @@ let LedgerService = class LedgerService {
                     },
                 });
                 if (ledgerItem) {
+                    if (Number(ledgerItem.quantityLiters) !== qty || Number(ledgerItem.rateApplied) !== rateApplied) {
+                        const editHistory = manager.create(daily_ledger_edit_history_entity_1.DailyLedgerEditHistory, {
+                            ledgerId: ledgerItem.id,
+                            oldQuantity: ledgerItem.quantityLiters,
+                            newQuantity: qty,
+                            oldRate: ledgerItem.rateApplied,
+                            newRate: rateApplied,
+                            editedBy: milkmanId,
+                        });
+                        await manager.save(daily_ledger_edit_history_entity_1.DailyLedgerEditHistory, editHistory);
+                    }
                     ledgerItem.quantityLiters = qty;
                     ledgerItem.rateApplied = rateApplied;
                     ledgerItem.totalPrice = qty * rateApplied;

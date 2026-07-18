@@ -134,6 +134,7 @@ let ReportsService = class ReportsService {
         }
         const ledgerEntries = await this.dailyLedgerRepository.find({
             where: { userId, milkmanId: (0, typeorm_2.In)(milkmanIds) },
+            relations: { editHistory: true },
             order: { date: 'DESC', slot: 'DESC' },
         });
         const paymentEntries = await this.paymentsLedgerRepository.find({
@@ -153,6 +154,16 @@ let ReportsService = class ReportsService {
         }
         const passbook = [];
         for (const item of ledgerEntries) {
+            const historyLogs = item.editHistory
+                ? item.editHistory.map((h) => ({
+                    id: h.id,
+                    oldQuantity: Number(h.oldQuantity),
+                    newQuantity: Number(h.newQuantity),
+                    oldRate: Number(h.oldRate),
+                    newRate: Number(h.newRate),
+                    editedAt: h.editedAt,
+                })).sort((a, b) => new Date(b.editedAt).getTime() - new Date(a.editedAt).getTime())
+                : [];
             passbook.push({
                 id: item.id,
                 date: item.date,
@@ -165,6 +176,7 @@ let ReportsService = class ReportsService {
                 mode: null,
                 ledgerType: item.type,
                 milkType: item.milkType,
+                editHistory: historyLogs,
             });
         }
         for (const item of paymentEntries) {
