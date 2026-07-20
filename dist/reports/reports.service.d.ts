@@ -144,6 +144,27 @@ export declare class ReportsService {
             sellQty: number;
             sellVal: number;
             amountPaid: number;
+            customerBreakdown: ({
+                userId: string;
+                name: string;
+                role: string;
+                buyQty: number;
+                buyVal: number;
+                sellQty: number;
+                sellVal: number;
+                buyBreakdown: {
+                    [milkType: string]: {
+                        qty: number;
+                        val: number;
+                    };
+                };
+                sellBreakdown: {
+                    [milkType: string]: {
+                        qty: number;
+                        val: number;
+                    };
+                };
+            } | null)[];
         }[];
         dailyMilkReport: {
             date: string;

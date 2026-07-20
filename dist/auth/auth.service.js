@@ -95,6 +95,7 @@ let AuthService = class AuthService {
                     name: u.name,
                     role: u.role,
                     mobileNumber: u.mobileNumber,
+                    parentMilkmanId: u.parentMilkmanId,
                 })),
             };
         }

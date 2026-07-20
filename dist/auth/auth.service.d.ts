@@ -24,6 +24,7 @@ export declare class AuthService {
             name: string;
             role: import("../entities/user.entity").Role;
             mobileNumber: string;
+            parentMilkmanId: string;
         }[];
     }>;
     private generateLoginResponse;

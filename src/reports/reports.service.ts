@@ -694,6 +694,48 @@ export class ReportsService {
       const sellVal = smLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
       const amountPaid = smPayments.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
 
+      const customerBreakdown = allUsers.filter(u => u.role !== 'milkman').map((u) => {
+        const uLedgers = smLedgers.filter(e => e.userId === u.id);
+        if (uLedgers.length === 0) return null;
+
+        const cBuyQty = uLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+        const cBuyVal = uLedgers.filter(e => e.type === 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+        const cSellQty = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.quantityLiters || 0), 0);
+        const cSellVal = uLedgers.filter(e => e.type !== 'buy').reduce((s, e) => s + Number(e.totalPrice || 0), 0);
+
+        const cBuyBreakdown: { [milkType: string]: { qty: number; val: number } } = {};
+        const cSellBreakdown: { [milkType: string]: { qty: number; val: number } } = {};
+
+        uLedgers.forEach((e) => {
+          const mType = e.milkType || 'Buffalo';
+          const qty = Number(e.quantityLiters || 0);
+          const val = Number(e.totalPrice || 0);
+          if (qty > 0) {
+            if (e.type === 'buy') {
+              if (!cBuyBreakdown[mType]) cBuyBreakdown[mType] = { qty: 0, val: 0 };
+              cBuyBreakdown[mType].qty += qty;
+              cBuyBreakdown[mType].val += val;
+            } else {
+              if (!cSellBreakdown[mType]) cSellBreakdown[mType] = { qty: 0, val: 0 };
+              cSellBreakdown[mType].qty += qty;
+              cSellBreakdown[mType].val += val;
+            }
+          }
+        });
+
+        return {
+          userId: u.id,
+          name: mappingMap.get(u.id) || u.name,
+          role: roleMap.get(u.id) || u.role,
+          buyQty: cBuyQty,
+          buyVal: cBuyVal,
+          sellQty: cSellQty,
+          sellVal: cSellVal,
+          buyBreakdown: cBuyBreakdown,
+          sellBreakdown: cSellBreakdown,
+        };
+      }).filter(Boolean);
+
       return {
         subMilkmanId: sm.id,
         name: sm.name,
@@ -703,6 +745,7 @@ export class ReportsService {
         sellQty,
         sellVal,
         amountPaid,
+        customerBreakdown,
       };
     });
 
